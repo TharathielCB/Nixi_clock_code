@@ -1,4 +1,6 @@
-#include <NTPClient.h>
+#include <NtpClientLib.h>
+#include <TimeLib.h>
+
 // change next line to use with another board/shield
 #include <ESP8266mDNS.h>
 #include <ESP8266WiFi.h>
@@ -17,11 +19,12 @@
 const char *ssid     = "nixieClock";
 WiFiUDP ntpUDP;  
 
-NTPClient timeClient(ntpUDP);
 nixie_display display;
  int number = 0;
  int oldnumber = 0;
 int i = 0;
+uint8 red_value, blue_value, green_value = 0;
+int8 red_step, blue_step, green_step = 0;
 
 #define LED_COUNT 4
 #define LED_PIN 13
@@ -32,6 +35,10 @@ int i = 0;
 
 #define BRIGHTNESS_STEP 15              // in/decrease brightness by this amount per click
 #define SPEED_STEP 5      
+
+#define LED_OFF 0
+#define LED_ON 1
+#define LED_FADING 2
 
 // WS2812FX ws2812fx = WS2812FX(LED_COUNT, LED_PIN, NEO_RGB + NEO_KHZ800);
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -45,6 +52,7 @@ String mqtt_server;
 String password;
 char hostString[16] = {0};
 
+uint8 led_mode = 0;
 
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
@@ -66,6 +74,32 @@ void callback(char* topic, byte* payload, unsigned int length) {
    }
    Serial.println();
  }
+
+// Start NTP only after IP network is connected
+void onSTAGotIP(WiFiEventStationModeGotIP ipInfo) {
+	Serial.printf("Got IP: %s\r\n", ipInfo.ip.toString().c_str());
+	NTP.begin("pool.ntp.org", 1, true);
+	NTP.setInterval(63);
+}
+
+
+
+void processSyncEvent(NTPSyncEvent_t ntpEvent) {
+	if (ntpEvent) {
+		Serial.print("Time Sync error: ");
+		if (ntpEvent == noResponse)
+			Serial.println("NTP server not reachable");
+		else if (ntpEvent == invalidAddress)
+			Serial.println("Invalid NTP server address");
+	}
+	else {
+		Serial.print("Got NTP time: ");
+		Serial.println(NTP.getTimeDateString(NTP.getLastNTPSync()));
+	}
+}
+
+boolean syncEventTriggered = false; // True if a time even has been triggered
+NTPSyncEvent_t ntpEvent; // Last triggered event
 
 
 void mqtt_reconnect() {
@@ -110,6 +144,11 @@ void config_mode() {
   server.on("/", [](){
     Serial.println("Serving Config-Form");
     server.send(200,"text/html", config_form());
+  });
+
+  // restart ESP
+  server.on("/restart", []() {
+    ESP.restart();
   });
 
   server.on("/save", HTTP_POST, [](){
@@ -187,7 +226,8 @@ void setup(){
         return;
     }
   }
- */  
+ */ 
+  static WiFiEventHandler e1, e2;
   Serial.begin(115200);
   EEPROM.begin(512);
   display.off();
@@ -217,6 +257,13 @@ void setup(){
   WiFi.mode(WIFI_STA);
   WiFi.begin(essid.c_str(), epass.c_str());
 
+	NTP.onNTPSyncEvent([](NTPSyncEvent_t event) {
+		ntpEvent = event;
+		syncEventTriggered = true;
+	});
+
+  e1 = WiFi.onStationModeGotIP(onSTAGotIP);// As soon WiFi is connected, start NTP Client
+
   int red_value = 0;
   int led_step = SPEED_STEP;
   while ( WiFi.status() != WL_CONNECTED ) {
@@ -244,25 +291,55 @@ void setup(){
 
   }
   
-  timeClient.begin();
   server.begin();
   display.clr();
   display.on();
 
+  led_mode = LED_FADING;
+  red_step = 1;
+  blue_step = 1;
+  green_step = 1;
+
 }
 
 void loop() {
-  if (!mqtt_client.connected()) 
-    mqtt_reconnect(); 
+  
+ // if (!mqtt_client.connected()) 
+ //   mqtt_reconnect(); 
     
   mqtt_client.loop();
-
-  timeClient.update();
+  
   oldnumber = number;
-  number = timeClient.getHours()* 100 + timeClient.getMinutes();
+  number = hour() * 100 + minute();
   if (number != oldnumber ) {
     display.print(number);
     Serial.println(number);
   }
 
+  if (led_mode == LED_FADING) {
+    red_value += red_step;
+    blue_value += blue_step;
+    green_value += green_step;
+
+    if (red_value > 253 && red_step > 0) red_step = -1;
+    if (red_value < 1 && red_step < 0) red_step = 1;
+
+    if (green_value > 253 && green_step > 0) green_step = -1;
+    if (green_value < 1 && green_step < 0) green_step = 1;
+
+    if (blue_value > 253 && blue_step > 0) blue_step = -1;
+    if (blue_value < 1 &&  blue_step < 0) blue_step = 1;
+    
+    for (int i=0; i< LED_COUNT; i++) {
+      strip.setPixelColor(i, strip.Color(red_value, green_value, blue_value)); 
+    }
+
+    strip.show();
+  } else if (led_mode == LED_OFF) {
+    for (int i=0; i< LED_COUNT; i++) {
+      strip.setPixelColor(i, strip.Color(0, 0, 0)); 
+    }
+    strip.show();
+  }
+  delay(50);
 }
