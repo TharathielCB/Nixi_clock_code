@@ -48,6 +48,7 @@ ESP8266WebServer server(80);
 WiFiClient espClient;
 PubSubClient mqtt_client(espClient);
 
+String ntp_server;
 String mqtt_server;
 String password;
 char hostString[16] = {0};
@@ -78,11 +79,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
 // Start NTP only after IP network is connected
 void onSTAGotIP(WiFiEventStationModeGotIP ipInfo) {
 	Serial.printf("Got IP: %s\r\n", ipInfo.ip.toString().c_str());
-	NTP.begin("pool.ntp.org", 1, true);
+	NTP.begin(ntp_server.c_str(), 1, true);
 	NTP.setInterval(63);
 }
-
-
 
 void processSyncEvent(NTPSyncEvent_t ntpEvent) {
 	if (ntpEvent) {
@@ -120,6 +119,30 @@ void mqtt_reconnect() {
    }
   }
 }
+
+
+/**
+ * Save POST-Argument from Webserver-request to EEPROM
+ * 
+ **/
+bool save_config(char* name, int start_address, int length) {
+  if (server.hasArg(name)) {
+      Serial.print("Save ");
+      Serial.print(name);
+      Serial.print(": ");
+      Serial.println(server.arg(name));
+      String value = server.arg(name);
+      for (int i = 0; i < length; ++i) EEPROM.write(start_address + i, 0);
+      for (int i=0; i < value.length(); ++i) EEPROM.write(start_address + i, value[i]);
+      EEPROM.commit();
+      return true;
+  } else {
+      return false;
+  }
+}
+
+
+
 /** Configuration Mode
  *  Start web-server to configure via webserver
  */
@@ -152,32 +175,15 @@ void config_mode() {
   });
 
   server.on("/save", HTTP_POST, [](){
-    if (server.hasArg("password")) {
-      Serial.print("Got password: ");
-      Serial.println(server.arg("password"));
-      String qpass = server.arg("password");
-      for (int i = 32; i < 96; ++i) { EEPROM.write(i, 0); }
-      for (int i = 0; i < qpass.length(); ++i)
-      {
-        EEPROM.write(32+i, qpass[i]);
-        Serial.print("Wrote: ");
-        Serial.println(qpass[i]); 
-      }    
+    save_config("ssid", 0, 32);
+    save_config("password", 32, 64);
+    save_config("ntp", 96, 64);
+    save_config("mqtt_broker", 0xa0, 64);
+    save_config("mqtt_user", 0xe0, 32);
+    save_config("mqtt_password", 0x100, 32);
+    save_config("mqtt_topic", 0x120, 32);
 
-    }
-    if (server.hasArg("ssid")) {
-      Serial.print("Got SSID: ");
-      Serial.println(server.arg("ssid"));
-      String qssid = server.arg("ssid");
-      for (int i = 0; i < 32; ++i) { EEPROM.write(i, 0); }
-      for (int i=0; i < qssid.length(); ++i)
-      {
-        EEPROM.write( i, qssid[i]);
-        Serial.print("Wrote: ");
-        Serial.println(qssid[i]);
-      }
-    }
-  EEPROM.commit();
+    EEPROM.commit();
 
     server.send(200,"text/html", config_form());
   });
@@ -202,6 +208,17 @@ void config_mode() {
     server.handleClient();
   }
 }
+
+
+String read_config(uint16 start, uint16 length) {
+  String value;
+  for (int i =0; i<length; ++i) {
+    value += char(EEPROM.read(start + i));
+  }
+  return value;
+}
+
+
 void setup(){
 
   // Read configured Wifi-Settings
@@ -229,26 +246,24 @@ void setup(){
  */ 
   static WiFiEventHandler e1, e2;
   Serial.begin(115200);
-  EEPROM.begin(512);
+  EEPROM.begin(4096);
   display.off();
   display.print(0);
   strip.begin();
   pinMode(16, INPUT);      // sets the digital pin 0 as input
 
   // read eeprom for ssid and pass
-  Serial.println("Reading EEPROM ssid");
-  String essid;
-  for (int i = 0; i < 32; ++i) essid += char(EEPROM.read(i));
-  
+  String essid = read_config(0,32);
   Serial.print("SSID: ");
   Serial.println(essid);
 
   Serial.println("Reading EEPROM pass");
-  String epass = "";
-  for (int i = 32; i < 96; ++i) epass += char(EEPROM.read(i));
+  String epass = read_config(32,64);
   Serial.print("PASS: ");
   Serial.println(epass);
 
+  ntp_server = read_config(0x60,64);
+  mqtt_server = read_config(0xa0,64);
   mqtt_client.setServer(mqtt_server.c_str(), 1883);
   mqtt_client.setCallback(callback);
   mqtt_client.subscribe("nixieClock");

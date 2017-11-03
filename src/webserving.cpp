@@ -29,11 +29,11 @@ String config_body() {
     body += "<p class=\"siimple-p\">";                                                                                                                                                                             
     body += "<div class=\"siimple-grid\">";                                                                                                                                                                           
     body += "<div class=\"siimple-grid-row\">";                                                                                                                                                                     
-    body += "<div class=\"siimple-grid-col siimple-grid-col--2\"><label class=\"siimple-label\">SSID:</label></div>";                                                                                               
+    body += "<div class=\"siimple-grid-col\"><label class=\"siimple-label\">SSID:</label></div>";                                                                                               
     body += "<div class=\"siimple-grid-col\"><input type=\"text\" name=\"ssid\" class=\"siimple-input\" placeholder=\"YOUR-NETWORK\"></div>";                                                                             
     body += "</div>";                                                                                                                                                                                            
     body += "<div class=\"siimple-grid-row\">";                                                                                                                                                                     
-    body += "<div class=\"siimple-grid-col siimple-grid-col--2\"><label class=\"siimple-label\">Wifi Password:</label></div>";                                                                                      
+    body += "<div class=\"siimple-grid-col\"><label class=\"siimple-label\">Wifi Password:</label></div>";                                                                                      
     body += "<div class=\"siimple-grid-col\"><input type=\"password\" name=\"password\" class=\"siimple-input\" placeholder=\"SUPERSECRET\"></div>";
     body += "</div>";
     body += "</p>";                                                                                                                                                                                               
@@ -43,12 +43,25 @@ String config_body() {
     body += "<div class=\"siimple-grid-col\"><input type=\"text\" name=\"ntp\" class=\"siimple-input\" placeholder=\"TIMESERVER\"></div>";
     body += "</div>";
     body += "<div class=\"siimple-grid-row\">";
-    body += "<div class=\"siimple-grid-col siimple-grid-col--2\"><label class=\"siimple-label\">MQTT-Broker:</label></div>";
-    body += "<div class=\"siimple-grid-col\"><input type=\"text\" name=\"mqtt\"  class=\"siimple-input\" placeholder=\"MQTT-Broker\"></div>";
+    body += "<div class=\"siimple-grid-col\"><label class=\"siimple-label\">MQTT-Broker:</label></div>";
+    body += "<div class=\"siimple-grid-col\"><input type=\"text\" name=\"mqtt_broker\"  class=\"siimple-input\" placeholder=\"MQTT-Broker\"></div>";
     body += "</div>";
+    body += "</div>";
+    body += "<div class=\"siimple-grid-row\">";                                                           
+    body += "<div class=\"siimple-grid-col\"><label class=\"siimple-label\">MQTT-Username:</label></div>";
+    body += "<div class=\"siimple-grid-col\"><input type=\"text\" name=\"mqtt_user\" class=\"siimple-input\" placeholder=\"MQTT-USERNAME\"></div>";
+    body += "</div>";
+    body += "<div class=\"siimple-grid-row\">";                                                          
+    body += "<div class=\"siimple-grid-col\"><label class=\"siimple-label\">MQTT-Password:</label></div>";
+    body += "<div class=\"siimple-grid-col\"><input type=\"password\" name=\"mqtt_password\" class=\"siimple-input\" placeholder=\"MQTT-PASSWORD\"></div>";
+    body += "</div>";
+    body += "<div class=\"siimple-grid-row\">";                                                          
+    body += "<div class=\"siimple-grid-col\"><label class=\"siimple-label\">MQTT-Topic:</label></div>";
+    body += "<div class=\"siimple-grid-col\"><input type=\"password\" name=\"mqtt_topic\" class=\"siimple-input\" placeholder=\"MQTT-PASSWORD\"></div>";
     body += "</div>";
     body += "</p>";
     body += "<input class=\"siimple-btn siimple-btn--blue\" type=\"submit\" value=\"save settings\">";
+    body += "<<div class=\"siimple-btn siimple-btn--blue\"><a href=\"/restart\">Restart Clock</a></div>";
     body += "</form>";
     body += "</div>";                                                                                                                                                                                                  
     body += "</body>";
@@ -65,3 +78,4 @@ String config_form() {
 
     return s;
 }
+
