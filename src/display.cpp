@@ -24,9 +24,17 @@ void nixie_display::off(){
     digitalWrite(hv_pin, HIGH);
 }
 
+void nixie_display::toggle() {
+    if (digitalRead(hv_pin)) {
+      on();
+    } else {
+      off();
+    }
+}
+
 void nixie_display::shift_bit(uint8 value) {
 
-    if ( value==0) { 
+    if ( value==0) {
         digitalWrite(data_pin, HIGH);
     } else {
         digitalWrite(data_pin,LOW);
@@ -64,7 +72,7 @@ void nixie_display::print(uint16 value) {
 
     // extract digits from value
     for (i = 0; i < 4; i++){
-        digit[3-i] = value % 10; 
+        digit[3-i] = value % 10;
         value = value / 10;
     }
 
@@ -77,4 +85,3 @@ void nixie_display::print(uint16 value) {
     for (i = 0; i < 20; i++) shift_bit(hour[19-i]);
     // shift_bit(0);
 }
-                                                                                                                                                              

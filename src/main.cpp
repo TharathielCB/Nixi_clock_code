@@ -130,8 +130,8 @@ void do_nothing() {
   oldnumber = number;
 }
 
-void nixies_off() {
-    display.off();
+void nixies_toggle() {
+    display.toggle();
 
 }
 
@@ -293,7 +293,7 @@ void setup(){
   menu_time.next = &menu_date;
   menu_time.prev = &menu_year;
   menu_time.btn_left_action = &next_menupoint;
-  menu_time.btn_center_action = &nixies_off;
+  menu_time.btn_center_action = &nixies_toggle;
   menu_time.btn_right_action = &prev_menupoint;
   menu_time.btn_left_long_action = &do_nothing;
   menu_time.btn_center_long_action = &config_mode;
@@ -345,8 +345,8 @@ void setup(){
 
   server.begin();
   display.clr();
+  display.print(0);
   display.on();
-
   led_mode = LED_ON;
   red_step = 1;
   blue_step = 1;
@@ -363,8 +363,11 @@ void setup(){
 
 void loop() {
 
-  if (!mqtt_connector.connected()) mqtt_reconnect();
-  mqtt_connector.loop();
+
+  if (WiFi.isConnected()) {
+    if (!mqtt_connector.connected()) mqtt_reconnect();
+    mqtt_connector.loop();
+  }
   // Read Input-BTNS
   old_btnstate = btnstate;
   btnstate = check_buttons();
