@@ -1,6 +1,6 @@
 #include <NtpClientLib.h>
 #include <TimeLib.h>
-
+#include <Time.h>
 // change next line to use with another board/shield
 #include <ESP8266mDNS.h>
 #include <ESP8266WiFi.h>
@@ -15,9 +15,11 @@
 
 #include "display.h"
 #include "webserving.h"
+#include "mqtt_client.h"
+#include "btnmenu.h"
 
-const char *ssid     = "nixieClock";
-WiFiUDP ntpUDP;  
+const char *ssid = "nixieClock";
+WiFiUDP ntpUDP;
 
 nixie_display display;
  int number = 0;
@@ -26,15 +28,38 @@ int i = 0;
 uint8 red_value, blue_value, green_value = 0;
 int8 red_step, blue_step, green_step = 0;
 
+// define buttons
+#define BTN_LEFT 16
+#define BTN_CENTER 0
+#define BTN_RIGHT 12
+
+// define button_states
+#define BTN_LEFT_PRESSED 0x01
+#define BTN_RIGHT_PRESSED 0x02
+#define BTN_CENTER_PRESSED 0x04
+
+// define if a btn was pressed short or long
+#define BTN_LEFT_SHORT 0x01
+#define BTN_RIGHT_SHORT 0x02
+#define BTN_CENTER_SHORT 0x04
+#define BTN_LEFT_LONG 0x08
+#define BTN_RIGHT_LONG 0x10
+#define BTN_CENTER_LONG 0x20
+
+uint8 btnstate = 0x00;
+uint8 old_btnstate = 0x00;
+unsigned long btn_starttimes[3];
+unsigned long btn_endtime;
+
 #define LED_COUNT 4
 #define LED_PIN 13
-#define DEFAULT_COLOR 0xFF5900
+#define DEFAULT_COLOR 0x0C0500
 #define DEFAULT_BRIGHTNESS 255
 #define DEFAULT_SPEED 200
 #define DEFAULT_MODE FX_MODE_STATIC
 
 #define BRIGHTNESS_STEP 15              // in/decrease brightness by this amount per click
-#define SPEED_STEP 5      
+#define SPEED_STEP 5
 
 #define LED_OFF 0
 #define LED_ON 1
@@ -43,10 +68,10 @@ int8 red_step, blue_step, green_step = 0;
 // WS2812FX ws2812fx = WS2812FX(LED_COUNT, LED_PIN, NEO_RGB + NEO_KHZ800);
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
+PubSubClient mqtt_connector;
 MDNSResponder mdns;
 ESP8266WebServer server(80);
 WiFiClient espClient;
-PubSubClient mqtt_client(espClient);
 
 String ntp_server;
 String mqtt_server;
@@ -54,27 +79,61 @@ String password;
 char hostString[16] = {0};
 
 uint8 led_mode = 0;
+uint8 input = 0;
 
-void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (int i=0;i<length;i++) {
-   char receivedChar = (char)payload[i];
-   Serial.print(receivedChar);
+// color variables: mix RGB (0-255) for desired yellow 250,100,10
+int redPx = 0x50;
+int grnHigh = 0x20;
+int bluePx = 0x03;
 
-   if (receivedChar == '0') {
-   // ESP8266 Huzzah outputs are "reversed"
-      strip.setPixelColor(1, strip.Color(0,0,0));
-      strip.show();
-   }
-   if (receivedChar == '1') {
-      strip.setPixelColor(1, strip.Color(0,255,0));
-   strip.show();
-   }
-   }
-   Serial.println();
- }
+
+node menu_time, menu_year, menu_date;
+
+node* menupoint = &menu_time;
+
+void next_menupoint() {
+  menupoint = menupoint->next;
+}
+
+void prev_menupoint() {
+  menupoint = menupoint->prev;
+}
+
+void show_time() {
+  oldnumber = number;
+  number = hour() * 100 + minute();
+  if (number != oldnumber ) {
+    display.print(number);
+    Serial.println(number);
+  }
+}
+
+void show_year() {
+  oldnumber = number;
+  number = year();
+  if (number != oldnumber) {
+    display.print(number);
+    Serial.println(number);
+  }
+}
+
+void show_date() {
+  oldnumber = number;
+  number = day() * 100 + month();
+  if (number != oldnumber) {
+    display.print(number);
+    Serial.println(number);
+  }
+}
+
+void do_nothing() {
+  oldnumber = number;
+}
+
+void nixies_off() {
+    display.off();
+
+}
 
 // Start NTP only after IP network is connected
 void onSTAGotIP(WiFiEventStationModeGotIP ipInfo) {
@@ -82,6 +141,27 @@ void onSTAGotIP(WiFiEventStationModeGotIP ipInfo) {
 	NTP.begin(ntp_server.c_str(), 1, true);
 	NTP.setInterval(63);
 }
+
+
+// read Buttons as input
+uint8 check_buttons() {
+  // set button_state
+  uint8 btn_state = 0x00;
+
+  //  Read Input-Buttons
+  if (!digitalRead(BTN_LEFT))
+    btn_state += BTN_LEFT_PRESSED;
+
+  if (!digitalRead(BTN_RIGHT))
+    btn_state += BTN_RIGHT_PRESSED;
+
+  if (!digitalRead(BTN_CENTER))
+    btn_state += BTN_CENTER_PRESSED;
+
+  return btn_state;
+}
+
+
 
 void processSyncEvent(NTPSyncEvent_t ntpEvent) {
 	if (ntpEvent) {
@@ -100,30 +180,9 @@ void processSyncEvent(NTPSyncEvent_t ntpEvent) {
 boolean syncEventTriggered = false; // True if a time even has been triggered
 NTPSyncEvent_t ntpEvent; // Last triggered event
 
-
-void mqtt_reconnect() {
-   // Loop until we're reconnected
-  if (!mqtt_client.connected()) {
-  Serial.print("Attempting MQTT connection...");
-  // Attempt to connect
-  if (mqtt_client.connect("NixieClock Client")) {
-   Serial.println("connected");
-   // ... and subscribe to topic
-   mqtt_client.subscribe("nixieClock");
-  } else {
-   Serial.print("failed, rc=");
-   Serial.print(mqtt_client.state());
-   Serial.println(" try again in 5 seconds");
-   // Wait 5 seconds before retrying
-   delay(5000);
-   }
-  }
-}
-
-
 /**
  * Save POST-Argument from Webserver-request to EEPROM
- * 
+ *
  **/
 bool save_config(char* name, int start_address, int length) {
   if (server.hasArg(name)) {
@@ -141,8 +200,6 @@ bool save_config(char* name, int start_address, int length) {
   }
 }
 
-
-
 /** Configuration Mode
  *  Start web-server to configure via webserver
  */
@@ -155,7 +212,7 @@ void config_mode() {
 	Serial.print("AP IP address: ");
   Serial.println(WiFi.softAPIP());
   Serial.println(WiFi.localIP());
-  
+
   if (!mdns.begin("nixieclock", WiFi.localIP())) {
     Serial.println("Error setting up MDNS responder!");
     return;
@@ -187,7 +244,7 @@ void config_mode() {
 
     server.send(200,"text/html", config_form());
   });
-  
+
 	server.begin();
   Serial.println("HTTP server started");
 
@@ -199,8 +256,8 @@ void config_mode() {
 
     // While in config-mode blue leds are fading
     blue += colorstep;
-    for (int i=0; i< LED_COUNT; i++) 
-      strip.setPixelColor(i, strip.Color(0,0,blue)); 
+    for (int i=0; i< LED_COUNT; i++)
+      strip.setPixelColor(i, strip.Color(0,0,blue));
     if (colorstep > 0 && blue > 250) colorstep = -1;
     if (colorstep < 0 && blue < 1) colorstep = 1;
     strip.show();
@@ -218,39 +275,47 @@ String read_config(uint16 start, uint16 length) {
   return value;
 }
 
-
 void setup(){
 
   // Read configured Wifi-Settings
-  /*
-  String esid;
-  for (int i = 0; i < 32; ++i)
-    {
-      esid += char(EEPROM.read(i));
-  }
-
-  String epass = "";
-  for (int i = 32; i < 96; ++i)
-    {
-      epass += char(EEPROM.read(i));
-  }
-
-  if ( esid.length() > 1 ) {
-    // test esid 
-    WiFi.begin(esid.c_str(), epass.c_str());
-    if ( testWifi() == 20 ) { 
-        launch_configuration(0);
-        return;
-    }
-  }
- */ 
   static WiFiEventHandler e1, e2;
   Serial.begin(115200);
   EEPROM.begin(4096);
   display.off();
   display.print(0);
   strip.begin();
-  pinMode(16, INPUT);      // sets the digital pin 0 as input
+  pinMode(BTN_LEFT, INPUT);
+  pinMode(BTN_CENTER, INPUT);
+  pinMode(BTN_RIGHT, INPUT);
+
+  // Define MENUs
+  menu_time.command = &show_time;
+  menu_time.next = &menu_date;
+  menu_time.prev = &menu_year;
+  menu_time.btn_left_action = &next_menupoint;
+  menu_time.btn_center_action = &nixies_off;
+  menu_time.btn_right_action = &prev_menupoint;
+  menu_time.btn_left_long_action = &do_nothing;
+  menu_time.btn_center_long_action = &config_mode;
+  menu_time.btn_right_long_action = &do_nothing;
+  menu_year.command = &show_year;
+  menu_year.next = &menu_time;
+  menu_year.btn_left_action = &next_menupoint;
+  menu_year.prev = &menu_date;
+  menu_year.btn_right_action = &prev_menupoint;
+  menu_year.btn_center_action = &do_nothing;
+  menu_year.btn_left_long_action = &do_nothing;
+  menu_year.btn_center_long_action = &do_nothing;
+  menu_year.btn_right_long_action = &do_nothing;
+  menu_date.command = &show_date;
+  menu_date.next = &menu_year;
+  menu_date.btn_left_action = &next_menupoint;
+  menu_date.prev = &menu_time;
+  menu_date.btn_right_action = &prev_menupoint;
+  menu_date.btn_center_action = &do_nothing;
+  menu_date.btn_left_long_action = &do_nothing;
+  menu_date.btn_center_long_action = &do_nothing;
+  menu_date.btn_right_long_action = &do_nothing;
 
   // read eeprom for ssid and pass
   String essid = read_config(0,32);
@@ -259,14 +324,13 @@ void setup(){
 
   Serial.println("Reading EEPROM pass");
   String epass = read_config(32,64);
-  Serial.print("PASS: ");
-  Serial.println(epass);
 
   ntp_server = read_config(0x60,64);
   mqtt_server = read_config(0xa0,64);
-  mqtt_client.setServer(mqtt_server.c_str(), 1883);
-  mqtt_client.setCallback(callback);
-  mqtt_client.subscribe("nixieClock");
+  Serial.print("MQTT-Broker: ");
+  Serial.println(mqtt_server);
+  Serial.println(mqtt_server.length());
+  mqtt_setup(mqtt_server.c_str(), espClient);
   strip.Color(255, 0, 0);
   strip.show(); // Initialize all pixels to 'off'
   WiFi.mode(WIFI_STA);
@@ -279,82 +343,87 @@ void setup(){
 
   e1 = WiFi.onStationModeGotIP(onSTAGotIP);// As soon WiFi is connected, start NTP Client
 
-  int red_value = 0;
-  int led_step = SPEED_STEP;
-  while ( WiFi.status() != WL_CONNECTED ) {
-    delay(50);
-    for (int i=0; i< LED_COUNT; i++) {
-      strip.setPixelColor(i, strip.Color(red_value,0,0)); 
-    }
-    red_value = red_value + led_step;
-
-    if (red_value > 180) {
-      red_value = 180;
-      led_step = -led_step;
-    }
-
-    if (red_value < 0) {
-      red_value = 0;
-      led_step = -led_step;
-    }
-    strip.show();
-    
-    if (!digitalRead(16)) {
-      config_mode();
-    }
-    
-
-  }
-  
   server.begin();
   display.clr();
   display.on();
 
-  led_mode = LED_FADING;
+  led_mode = LED_ON;
   red_step = 1;
   blue_step = 1;
   green_step = 1;
 
+  red_value = 0x0c;
+  green_value = 0x05;
+  blue_value = 0x00;
+  for (int i=0; i< LED_COUNT; i++) {
+    strip.setPixelColor(i, strip.Color(red_value, green_value, blue_value));
+  }
+  strip.show();
 }
 
 void loop() {
-  
- // if (!mqtt_client.connected()) 
- //   mqtt_reconnect(); 
-    
-  mqtt_client.loop();
-  
-  oldnumber = number;
-  number = hour() * 100 + minute();
-  if (number != oldnumber ) {
-    display.print(number);
-    Serial.println(number);
-  }
 
-  if (led_mode == LED_FADING) {
-    red_value += red_step;
-    blue_value += blue_step;
-    green_value += green_step;
-
-    if (red_value > 253 && red_step > 0) red_step = -1;
-    if (red_value < 1 && red_step < 0) red_step = 1;
-
-    if (green_value > 253 && green_step > 0) green_step = -1;
-    if (green_value < 1 && green_step < 0) green_step = 1;
-
-    if (blue_value > 253 && blue_step > 0) blue_step = -1;
-    if (blue_value < 1 &&  blue_step < 0) blue_step = 1;
-    
-    for (int i=0; i< LED_COUNT; i++) {
-      strip.setPixelColor(i, strip.Color(red_value, green_value, blue_value)); 
+  if (!mqtt_connector.connected()) mqtt_reconnect();
+  mqtt_connector.loop();
+  // Read Input-BTNS
+  old_btnstate = btnstate;
+  btnstate = check_buttons();
+  if (old_btnstate != btnstate) {
+    Serial.printf("Btn pressed");
+    // Left Button pressed, wasn't before
+    if (btnstate & BTN_LEFT_PRESSED && !(old_btnstate & BTN_LEFT_PRESSED)) {
+      btn_starttimes[0] = millis();
+    }
+    // Center_Button pressed, wasn't before
+    if (btnstate & BTN_CENTER_PRESSED && !(old_btnstate & BTN_CENTER_PRESSED)) {
+      btn_starttimes[1] = millis();
+    }
+    // Center_Button pressed, wasn't before
+    if (btnstate & BTN_RIGHT_PRESSED && !(old_btnstate & BTN_RIGHT_PRESSED)) {
+      btn_starttimes[2] = millis();
+    }
+    // Left Button released
+    if (!(btnstate & BTN_LEFT_PRESSED) && old_btnstate & BTN_LEFT_PRESSED) {
+      btn_endtime = millis();
+      if (btn_endtime - btn_starttimes[0] < 1000) {
+        input = BTN_LEFT_SHORT;
+      } else if (btn_endtime - btn_starttimes[0] >= 1000 && btn_endtime) {
+        input = BTN_LEFT_LONG;
+      }
+    }
+    // Center Button released
+    if (!(btnstate & BTN_CENTER_PRESSED) && old_btnstate & BTN_CENTER_PRESSED) {
+      btn_endtime = millis();
+      if (btn_endtime - btn_starttimes[1] < 1000) {
+        input = BTN_CENTER_SHORT;
+      } else if (btn_endtime - btn_starttimes[1] >= 1000 && btn_endtime) {
+        input = BTN_CENTER_LONG;
+      }
+    }
+    // Right Button released
+    if (!(btnstate & BTN_RIGHT_PRESSED) && old_btnstate & BTN_RIGHT_PRESSED) {
+      btn_endtime = millis();
+      if (btn_endtime - btn_starttimes[2] < 1000) {
+        input = BTN_RIGHT_SHORT;
+      } else if (btn_endtime - btn_starttimes[2] >= 1000 && btn_endtime) {
+        input = BTN_RIGHT_LONG;
+      }
     }
 
-    strip.show();
-  } else if (led_mode == LED_OFF) {
-    for (int i=0; i< LED_COUNT; i++) {
-      strip.setPixelColor(i, strip.Color(0, 0, 0)); 
-    }
-    strip.show();
   }
-  delay(50);
+
+  // interpret button-input
+  if (input != 0x00) {
+    if (input & BTN_LEFT_PRESSED) menupoint->btn_left_action();
+    if (input & BTN_RIGHT_PRESSED) menupoint->btn_right_action();
+    if (input & BTN_CENTER_PRESSED) menupoint->btn_center_action();
+    if (input & BTN_LEFT_LONG) menupoint->btn_left_long_action();
+    if (input & BTN_RIGHT_LONG) menupoint->btn_right_long_action();
+    if (input & BTN_CENTER_LONG) menupoint->btn_center_long_action();
+
+    input = 0;
+  }
+
+  menupoint->command();
+
 }

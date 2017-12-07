@@ -1,4 +1,5 @@
-
+#ifndef DISPLAY_H
+#define DISPLAY_H
 #include "Arduino.h"
 
 class nixie_display {
@@ -21,3 +22,4 @@ public:
     void set_delay(uint16 delay);
     uint16 get_delay();
 };
+#endif
