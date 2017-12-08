@@ -86,9 +86,9 @@ int redPx = 0x50;
 int grnHigh = 0x20;
 int bluePx = 0x03;
 
+int edit_number_oldvalue, edit_number; // Internal number which is used while in editing-menu
 
-node menu_time, menu_year, menu_date;
-
+node menu_time, menu_year, menu_date, menu_edit_hour, menu_edit_minute, menu_edit_day, menu_edit_month, menu_edit_year;
 node* menupoint = &menu_time;
 
 void next_menupoint() {
@@ -161,6 +161,215 @@ uint8 check_buttons() {
   return btn_state;
 }
 
+void inc_hour() {
+    edit_number += 100;
+    if (edit_number > 2359) {
+      edit_number -= 2400;
+    }
+    display.print(edit_number);
+    return;
+}
+
+void dec_hour() {
+    edit_number -= 100;
+    if (edit_number < 0) {
+      edit_number += 2400;
+    }
+    display.print(edit_number);
+    return;
+}
+
+void inc_day() {
+    edit_number += 100;
+    if (edit_number > 3112) {
+        edit_number -= 3000;
+    }
+    display.print(edit_number);
+}
+
+void dec_day() {
+    edit_number -= 100;
+    if (edit_number < 0) {
+      edit_number += 3100;
+    }
+    display.print(edit_number);
+    return;
+}
+
+void inc_minute() {
+    int minute = edit_number % 100;
+    int hour = edit_number - minute;
+    minute += 1;
+    if (minute > 59) minute = 0;
+    edit_number = hour + minute;
+    display.print(edit_number);
+    return;
+}
+
+void dec_minute() {
+  int minute = edit_number % 100;
+  int hour = edit_number - minute;
+  minute -= 1;
+  if (minute < 0) minute = 59;
+  edit_number = hour + minute;
+  display.print(edit_number);
+  return;
+}
+
+void inc_month() {
+    int month = edit_number % 100;
+    int day = edit_number - month;
+    month += 1;
+    if (month > 12) month = 1;
+    edit_number = day + month;
+    display.print(edit_number);
+    return;
+}
+
+void dec_month() {
+  int month = edit_number % 100;
+  int day = edit_number - month;
+  month -= 1;
+  if (month < 1) month= 12;
+  edit_number = day + month;
+  display.print(edit_number);
+  return;
+}
+
+void inc_year() {
+  edit_number += 1;
+  if (edit_number > 2100) edit_number=1970; // assume that this clock works only till year 2100
+  display.print(edit_number);
+  return;
+}
+
+void dec_year() {
+  edit_number -= 1;
+  if (edit_number < 1970) edit_number=2100; // don't set year prior to 1970
+  display.print(edit_number);
+  return;
+}
+
+void edit_hour() {
+    strip.setPixelColor(0, strip.Color(0,0,0));
+    strip.setPixelColor(1, strip.Color(0,0,0));
+    if (second() % 2) {
+      strip.setPixelColor(2, strip.Color(100,50,0));
+      strip.setPixelColor(3, strip.Color(100,50,0));
+    } else {
+      strip.setPixelColor(2, strip.Color(0,0,0));
+      strip.setPixelColor(3, strip.Color(0,0,0));
+    }
+    strip.show();
+}
+
+void edit_minute() {
+  strip.setPixelColor(2, strip.Color(0,0,0));
+  strip.setPixelColor(3, strip.Color(0,0,0));
+  if (second() % 2) {
+    strip.setPixelColor(0, strip.Color(100,50,0));
+    strip.setPixelColor(1, strip.Color(100,50,0));
+  } else {
+    strip.setPixelColor(0, strip.Color(0,0,0));
+    strip.setPixelColor(1, strip.Color(0,0,0));
+  }
+  strip.show();
+}
+
+void edit_day() {
+  strip.setPixelColor(0, strip.Color(0,0,0));
+  strip.setPixelColor(1, strip.Color(0,0,0));
+  if (second() % 2) {
+    strip.setPixelColor(2, strip.Color(100,50,0));
+    strip.setPixelColor(3, strip.Color(100,50,0));
+  } else {
+    strip.setPixelColor(2, strip.Color(0,0,0));
+    strip.setPixelColor(3, strip.Color(0,0,0));
+  }
+  strip.show();
+}
+
+void edit_month() {
+  strip.setPixelColor(2, strip.Color(0,0,0));
+  strip.setPixelColor(3, strip.Color(0,0,0));
+  if (second() % 2) {
+    strip.setPixelColor(0, strip.Color(100,50,0));
+    strip.setPixelColor(1, strip.Color(100,50,0));
+  } else {
+    strip.setPixelColor(0, strip.Color(0,0,0));
+    strip.setPixelColor(1, strip.Color(0,0,0));
+  }
+  strip.show();
+}
+
+void editing_year() {
+    if (second() % 2) {
+      for (i=0; i<4; i++) strip.setPixelColor(i, strip.Color(100,50,0));
+    } else {
+      for (i=0; i<4; i++) strip.setPixelColor(i, strip.Color(0,0,0));
+    }
+    strip.show();
+}
+
+// start time-edit mode,
+void edit_time() {
+  edit_number = hour() * 100 + minute();
+  menupoint = &menu_edit_hour;
+  display.print(edit_number);
+  return;
+}
+
+// finish time-edit mode,
+void save_time() {
+  // switch leds off
+  for (int i=0; i<4; i++) strip.setPixelColor(i, strip.Color(0,0,0));
+  strip.show();
+  int m = edit_number % 100;
+  int h = (edit_number - m) / 100;
+  setTime(h,m,0,day(),month(),year());
+  menupoint = &menu_time;
+  for (int i=0; i<4; i++) strip.setPixelColor(i, strip.Color(0,0,0));
+  strip.show();
+  return;
+}
+
+// start date-edit mode
+void edit_date() {
+  edit_number = day() * 100 + month();
+  menupoint = &menu_edit_day;
+  display.print(edit_number);
+  return;
+}
+// finish date-edit mode,
+void save_date() {
+  // switch leds off
+  for (int i=0; i<4; i++) strip.setPixelColor(i, strip.Color(0,0,0));
+  strip.show();
+  int m = edit_number % 100;
+  int d = (edit_number - m) / 100;
+  setTime(hour(),minute(),second(),d,m,year());
+  menupoint = &menu_date;
+  for (int i=0; i<4; i++) strip.setPixelColor(i, strip.Color(0,0,0));
+  strip.show();
+  return;
+}
+
+// start year-edit Mode
+void edit_year() {
+  edit_number = year();
+  menupoint = &menu_edit_year;
+  display.print(edit_number);
+  return;
+}
+
+//finish year_edit mode and save value
+void save_year() {
+  for (int i=0; i<4; i++) strip.setPixelColor(i, strip.Color(0,0,0));
+  strip.show();
+  menupoint = &menu_year;
+  setTime(hour(),minute(),second(),day(),month(),edit_number);
+  return;
+}
 
 
 void processSyncEvent(NTPSyncEvent_t ntpEvent) {
@@ -250,10 +459,15 @@ void config_mode() {
 
   unsigned char blue=0;
   char colorstep = 1;
-
+  unsigned int btnstate = 0x00;
+  unsigned int oldbtnstate = 0x00;
   // Main-Loop of Configuration-Mode
   while(1) {
-
+    // Check if center btn is released
+    oldbtnstate = btnstate;
+    btnstate = check_buttons();
+    if (oldbtnstate & BTN_CENTER_PRESSED && !(btnstate & BTN_CENTER_PRESSED))
+        ESP.restart();
     // While in config-mode blue leds are fading
     blue += colorstep;
     for (int i=0; i< LED_COUNT; i++)
@@ -288,6 +502,9 @@ void setup(){
   pinMode(BTN_CENTER, INPUT);
   pinMode(BTN_RIGHT, INPUT);
 
+  // set startdate to 0:0 1/1/2018
+  setTime(0,0,0,1,1,2018);
+
   // Define MENUs
   menu_time.command = &show_time;
   menu_time.next = &menu_date;
@@ -295,7 +512,7 @@ void setup(){
   menu_time.btn_left_action = &next_menupoint;
   menu_time.btn_center_action = &nixies_toggle;
   menu_time.btn_right_action = &prev_menupoint;
-  menu_time.btn_left_long_action = &do_nothing;
+  menu_time.btn_left_long_action = &edit_time;
   menu_time.btn_center_long_action = &config_mode;
   menu_time.btn_right_long_action = &do_nothing;
   menu_year.command = &show_year;
@@ -304,7 +521,7 @@ void setup(){
   menu_year.prev = &menu_date;
   menu_year.btn_right_action = &prev_menupoint;
   menu_year.btn_center_action = &do_nothing;
-  menu_year.btn_left_long_action = &do_nothing;
+  menu_year.btn_left_long_action = &edit_year;
   menu_year.btn_center_long_action = &do_nothing;
   menu_year.btn_right_long_action = &do_nothing;
   menu_date.command = &show_date;
@@ -313,9 +530,56 @@ void setup(){
   menu_date.prev = &menu_time;
   menu_date.btn_right_action = &prev_menupoint;
   menu_date.btn_center_action = &do_nothing;
-  menu_date.btn_left_long_action = &do_nothing;
+  menu_date.btn_left_long_action = &edit_date;
   menu_date.btn_center_long_action = &do_nothing;
   menu_date.btn_right_long_action = &do_nothing;
+
+  menu_edit_hour.command = &edit_hour;
+  menu_edit_hour.prev = &menu_time;
+  menu_edit_hour.next = &menu_edit_minute;
+  menu_edit_hour.btn_left_action = &inc_hour;
+  menu_edit_hour.btn_right_action = &dec_hour;
+  menu_edit_hour.btn_center_action = &next_menupoint;
+  menu_edit_hour.btn_left_long_action = &do_nothing;
+  menu_edit_hour.btn_center_long_action = &save_time;
+  menu_edit_hour.btn_right_long_action = &do_nothing;
+  menu_edit_minute.command = &edit_minute;
+  menu_edit_minute.prev = &menu_edit_hour;
+  menu_edit_minute.next = &menu_edit_hour;
+  menu_edit_minute.btn_left_action = &inc_minute;
+  menu_edit_minute.btn_right_action = &dec_minute;
+  menu_edit_minute.btn_center_action = &next_menupoint;
+  menu_edit_minute.btn_left_long_action = &do_nothing;
+  menu_edit_minute.btn_center_long_action = &save_time;
+  menu_edit_minute.btn_right_long_action = &do_nothing;
+  menu_edit_day.command = &edit_day;
+  menu_edit_day.prev = &menu_date;
+  menu_edit_day.next = &menu_edit_month;
+  menu_edit_day.btn_left_action = &inc_day;
+  menu_edit_day.btn_right_action = &dec_day;
+  menu_edit_day.btn_center_action = &next_menupoint;
+  menu_edit_day.btn_left_long_action = &do_nothing;
+  menu_edit_day.btn_center_long_action = &save_date;
+  menu_edit_day.btn_right_long_action = &do_nothing;
+  menu_edit_month.command = &edit_month;
+  menu_edit_month.prev = &menu_edit_day;
+  menu_edit_month.next = &menu_edit_day;
+  menu_edit_month.btn_left_action = &inc_month;
+  menu_edit_month.btn_right_action = &dec_month;
+  menu_edit_month.btn_center_action = &next_menupoint;
+  menu_edit_month.btn_left_long_action = &do_nothing;
+  menu_edit_month.btn_center_long_action = &save_date;
+  menu_edit_month.btn_right_long_action = &do_nothing;
+  menu_edit_year.command = &editing_year;
+  menu_edit_year.prev = &menu_year;
+  menu_edit_year.next = &menu_year;
+  menu_edit_year.btn_left_action = &inc_year;
+  menu_edit_year.btn_right_action = &dec_year;
+  menu_edit_year.btn_center_action = &do_nothing;
+  menu_edit_year.btn_left_long_action = &do_nothing;
+  menu_edit_year.btn_center_long_action = &save_year;
+  menu_edit_year.btn_right_long_action = &do_nothing;
+
 
   // read eeprom for ssid and pass
   String essid = read_config(0,32);

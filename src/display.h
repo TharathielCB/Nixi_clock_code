@@ -16,6 +16,7 @@ public:
     // ~nixie_display();                  // destructor
     void on();
     void off();
+    void toggle();
     void clr();
     void shift_bit(uint8 value);
     void print(uint16 value);
