@@ -5,6 +5,9 @@ void mqtt_setup(const char* server, Client &client) {
   mqtt_connector.setServer(server, 1883);
   mqtt_connector.setCallback(mqtt_callback);
   mqtt_connector.subscribe("nixieClock");
+  mqtt_connector.subscribe("nixieClock/display");
+  mqtt_connector.subscribe("nixieClock/power");
+  mqtt_connector.subscribe("nixieClock/leds");
 }
 
 
@@ -28,8 +31,7 @@ void mqtt_reconnect() {
    Serial.print("failed, rc=");
    Serial.print(mqtt_connector.state());
    Serial.println(" try again in 5 seconds");
-   // Wait 5 seconds before retrying
-   delay(5000);
+   
    }
   }
 }

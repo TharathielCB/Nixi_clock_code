@@ -81,6 +81,8 @@ char hostString[16] = {0};
 uint8 led_mode = 0;
 uint8 input = 0;
 
+uint32 mqtt_connection_time = 0;
+
 // color variables: mix RGB (0-255) for desired yellow 250,100,10
 int redPx = 0x50;
 int grnHigh = 0x20;
@@ -627,16 +629,21 @@ void setup(){
 
 void loop() {
 
-
   if (WiFi.isConnected()) {
-    if (!mqtt_connector.connected()) mqtt_reconnect();
+    if (!mqtt_connector.connected()) {
+      if (now() - mqtt_connection_time > 5) {
+        mqtt_reconnect();
+        mqtt_connection_time = now();
+      }
+    }
     mqtt_connector.loop();
   }
   // Read Input-BTNS
+
   old_btnstate = btnstate;
   btnstate = check_buttons();
   if (old_btnstate != btnstate) {
-    Serial.printf("Btn pressed");
+    Serial.printf("Button pressed");
     // Left Button pressed, wasn't before
     if (btnstate & BTN_LEFT_PRESSED && !(old_btnstate & BTN_LEFT_PRESSED)) {
       btn_starttimes[0] = millis();
@@ -681,6 +688,7 @@ void loop() {
 
   // interpret button-input
   if (input != 0x00) {
+    Serial.printf("Button pressed\n");
     if (input & BTN_LEFT_PRESSED) menupoint->btn_left_action();
     if (input & BTN_RIGHT_PRESSED) menupoint->btn_right_action();
     if (input & BTN_CENTER_PRESSED) menupoint->btn_center_action();
