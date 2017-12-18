@@ -7,9 +7,9 @@
 
 
 void nixie_display::setup_pins() {
-    pinMode(hv_pin, OUTPUT);
-    pinMode(data_pin, OUTPUT);
-    pinMode(clk_pin, OUTPUT);
+    mcp->pinMode(hv_pin, OUTPUT);
+    mcp->pinMode(data_pin, OUTPUT);
+    mcp->pinMode(clk_pin, OUTPUT);
 }
 
 void nixie_display::clr() {
@@ -46,7 +46,8 @@ void nixie_display::shift_bit(uint8 value) {
     delay(shift_delay);
 }
 
-nixie_display::nixie_display() {
+nixie_display::nixie_display(Adafruit_MCP23008 *portexpander) {
+    mcp = portexpander;
     setup_pins();
 }
 
@@ -61,12 +62,16 @@ uint16 nixie_display::get_delay() {
 void nixie_display::print(uint16 value) {
     uint8 i;
     uint8 digit[4];
-    uint8 minutes[20] = {0};
-    uint8 hour[20] = {0};
+    uint8 sr_bits[64] = {0};
     uint8 bitlist_lsb[10] = {7,11,12,13,14,10,8,9,5,6};
     uint8 bitlist_msb[10] = {18,2,3,4,19,0,1,15,16,17};
+  // Pin-Mapping of Shift-Register ->Nixie-Tubes
+	uint8 bitlist_tube0[10] = {10,0,3,4,5,6,7,8,9,11};
+	uint8 bitlist_tube1[10] = {19,12,11,10,13,14,15,16,17,18};
+	uint8 bitlist_tube2[10] = {32+15,32+10,32+11,32+12,32+13,32+14,32+19,32+18,32+17,32+16};
+	uint8 bitlist_tube3[10] = {32+30,32+21,32+22,32+23,32+24,32+25,32+26,32+27,32+28,32+29};
 
-    // 5 6,1,2,3                     7 8 9 0 4
+	// 5 6,1,2,3                     7 8 9 0 4
     //           8 9 0 6 7 5 1 2 3 4
 
 
@@ -76,12 +81,11 @@ void nixie_display::print(uint16 value) {
         value = value / 10;
     }
 
-    hour[bitlist_msb[digit[0]]] = HIGH;
-    hour[bitlist_lsb[digit[1]]] = HIGH;
-    minutes[bitlist_msb[digit[2]]] = HIGH;
-    minutes[bitlist_lsb[digit[3]]] = HIGH;
+    sr_bits[bitlist_tube0[digit[0]]] = HIGH;
+    sr_bits[bitlist_tube1[digit[1]]] = HIGH;
+    sr_bits[bitlist_tube2[digit[2]]] = HIGH;
+    sr_bits[bitlist_tube3[digit[3]]] = HIGH;
 
-    for (i = 0; i < 20; i++) shift_bit(minutes[19-i]);
-    for (i = 0; i < 20; i++) shift_bit(hour[19-i]);
+    for (i = 0; i < 64; i++) shift_bit(sr_bits[63-i]);
     // shift_bit(0);
 }

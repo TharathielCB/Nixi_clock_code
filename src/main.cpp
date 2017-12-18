@@ -17,11 +17,12 @@
 #include "webserving.h"
 #include "mqtt_client.h"
 #include "btnmenu.h"
+#include <Wire.h>       // i²c library
+#include "Adafruit_MCP23008.h" //port expander
 
 const char *ssid = "nixieClock";
 WiFiUDP ntpUDP;
 
-nixie_display display;
  int number = 0;
  int oldnumber = 0;
 int i = 0;
@@ -29,15 +30,16 @@ uint8 red_value, blue_value, green_value = 0;
 int8 red_step, blue_step, green_step = 0;
 
 // define buttons
-#define BTN_LEFT 16
-#define BTN_CENTER 0
-#define BTN_RIGHT 12
+#define BTN_LEFT 0
+#define BTN_CENTER 7
+#define BTN_RIGHT 6
+#define BTN_PROG 0
 
 // define button_states
 #define BTN_LEFT_PRESSED 0x01
 #define BTN_RIGHT_PRESSED 0x02
 #define BTN_CENTER_PRESSED 0x04
-
+#define BTN_PROG_PRESSED 0x08
 // define if a btn was pressed short or long
 #define BTN_LEFT_SHORT 0x01
 #define BTN_RIGHT_SHORT 0x02
@@ -45,18 +47,16 @@ int8 red_step, blue_step, green_step = 0;
 #define BTN_LEFT_LONG 0x08
 #define BTN_RIGHT_LONG 0x10
 #define BTN_CENTER_LONG 0x20
+#define BTN_PROG_SHORT 0x40
 
 uint8 btnstate = 0x00;
 uint8 old_btnstate = 0x00;
 unsigned long btn_starttimes[3];
 unsigned long btn_endtime;
 
-#define LED_COUNT 4
-#define LED_PIN 13
-#define DEFAULT_COLOR 0x0C0500
-#define DEFAULT_BRIGHTNESS 255
-#define DEFAULT_SPEED 200
-#define DEFAULT_MODE FX_MODE_STATIC
+
+#define LED_COUNT 4                   // define number of ws2812 leds
+#define LED_PIN 13                    // define Pin where WS2812 connected to
 
 #define BRIGHTNESS_STEP 15              // in/decrease brightness by this amount per click
 #define SPEED_STEP 5
@@ -65,28 +65,23 @@ unsigned long btn_endtime;
 #define LED_ON 1
 #define LED_FADING 2
 
-// WS2812FX ws2812fx = WS2812FX(LED_COUNT, LED_PIN, NEO_RGB + NEO_KHZ800);
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
-
+Adafruit_MCP23008 mcp; // create port-expander-session
 PubSubClient mqtt_connector;
 MDNSResponder mdns;
 ESP8266WebServer server(80);
 WiFiClient espClient;
+nixie_display display(&mcp);
 
 String ntp_server;
 String mqtt_server;
 String password;
 char hostString[16] = {0};
-
+uint8_t oldsec;
 uint8 led_mode = 0;
 uint8 input = 0;
 
 uint32 mqtt_connection_time = 0;
-
-// color variables: mix RGB (0-255) for desired yellow 250,100,10
-int redPx = 0x50;
-int grnHigh = 0x20;
-int bluePx = 0x03;
 
 int edit_number_oldvalue, edit_number; // Internal number which is used while in editing-menu
 
@@ -137,7 +132,7 @@ void nixies_toggle() {
 
 }
 
-// Start NTP only after IP network is connected
+// Start NTP only after IPnetwork is connected
 void onSTAGotIP(WiFiEventStationModeGotIP ipInfo) {
 	Serial.printf("Got IP: %s\r\n", ipInfo.ip.toString().c_str());
 	NTP.begin(ntp_server.c_str(), 1, true);
@@ -151,14 +146,17 @@ uint8 check_buttons() {
   uint8 btn_state = 0x00;
 
   //  Read Input-Buttons
-  if (!digitalRead(BTN_LEFT))
+  if (!mcp.digitalRead(BTN_LEFT))
     btn_state += BTN_LEFT_PRESSED;
 
-  if (!digitalRead(BTN_RIGHT))
+  if (!mcp.digitalRead(BTN_RIGHT))
     btn_state += BTN_RIGHT_PRESSED;
 
-  if (!digitalRead(BTN_CENTER))
+  if (!mcp.digitalRead(BTN_CENTER))
     btn_state += BTN_CENTER_PRESSED;
+
+  if (!digitalRead(BTN_PROG))
+    btn_state += BTN_PROG_PRESSED;
 
   return btn_state;
 }
@@ -493,6 +491,8 @@ String read_config(uint16 start, uint16 length) {
 
 void setup(){
 
+  Wire.begin();
+  mcp.begin();
   // Read configured Wifi-Settings
   static WiFiEventHandler e1, e2;
   Serial.begin(115200);
@@ -500,12 +500,21 @@ void setup(){
   display.off();
   display.print(0);
   strip.begin();
-  pinMode(BTN_LEFT, INPUT);
-  pinMode(BTN_CENTER, INPUT);
-  pinMode(BTN_RIGHT, INPUT);
+  mcp.pinMode(BTN_LEFT, INPUT);
+  mcp.pinMode(BTN_CENTER, INPUT);
+  mcp.pinMode(BTN_RIGHT, INPUT);
+  mcp.pullUp(BTN_LEFT, HIGH);  // turn on a 100K pullup internally
+  mcp.pullUp(BTN_RIGHT, HIGH);  // turn on a 100K pullup internally
+  mcp.pullUp(BTN_CENTER, HIGH);  // turn on a 100K pullup internally
 
+  pinMode(BTN_PROG,INPUT_PULLUP);
   // set startdate to 0:0 1/1/2018
   setTime(0,0,0,1,1,2018);
+
+  // Enter Config_mode if prog_btn is pressed during startup
+  if (!digitalRead(BTN_PROG)) {
+    config_mode();
+  }
 
   // Define MENUs
   menu_time.command = &show_time;
@@ -629,6 +638,8 @@ void setup(){
 
 void loop() {
 
+
+
   if (WiFi.isConnected()) {
     if (!mqtt_connector.connected()) {
       if (now() - mqtt_connection_time > 5) {
@@ -643,7 +654,12 @@ void loop() {
   old_btnstate = btnstate;
   btnstate = check_buttons();
   if (old_btnstate != btnstate) {
-    Serial.printf("Button pressed");
+    Serial.printf("Button pressed %i", btnstate);
+
+    if (btnstate & BTN_LEFT_PRESSED) Serial.printf("BTN_LEFT");
+    if (btnstate & BTN_CENTER_PRESSED) Serial.printf("BTN_CENTER");
+    if (btnstate & BTN_RIGHT_PRESSED) Serial.printf("BTN_RIGHT");
+
     // Left Button pressed, wasn't before
     if (btnstate & BTN_LEFT_PRESSED && !(old_btnstate & BTN_LEFT_PRESSED)) {
       btn_starttimes[0] = millis();
@@ -664,6 +680,7 @@ void loop() {
       } else if (btn_endtime - btn_starttimes[0] >= 1000 && btn_endtime) {
         input = BTN_LEFT_LONG;
       }
+      Serial.printf("LeftButton released after %ds", btn_endtime-btn_starttimes[0]);
     }
     // Center Button released
     if (!(btnstate & BTN_CENTER_PRESSED) && old_btnstate & BTN_CENTER_PRESSED) {
@@ -673,6 +690,7 @@ void loop() {
       } else if (btn_endtime - btn_starttimes[1] >= 1000 && btn_endtime) {
         input = BTN_CENTER_LONG;
       }
+      Serial.printf("CENTER Button released after %ds", btn_endtime-btn_starttimes[1]);
     }
     // Right Button released
     if (!(btnstate & BTN_RIGHT_PRESSED) && old_btnstate & BTN_RIGHT_PRESSED) {
@@ -682,16 +700,22 @@ void loop() {
       } else if (btn_endtime - btn_starttimes[2] >= 1000 && btn_endtime) {
         input = BTN_RIGHT_LONG;
       }
+      Serial.printf("RIGHT Button released after %ds", btn_endtime-btn_starttimes[2]);
+    }
+
+    // Prg Button released
+    if ((!btnstate & BTN_PROG_PRESSED) && (old_btnstate & BTN_PROG_PRESSED)) {
+      input = BTN_PROG_SHORT;
     }
 
   }
 
   // interpret button-input
   if (input != 0x00) {
-    Serial.printf("Button pressed\n");
-    if (input & BTN_LEFT_PRESSED) menupoint->btn_left_action();
-    if (input & BTN_RIGHT_PRESSED) menupoint->btn_right_action();
-    if (input & BTN_CENTER_PRESSED) menupoint->btn_center_action();
+    if (input & BTN_PROG_SHORT) config_mode();
+    if (input & BTN_LEFT_SHORT) menupoint->btn_left_action();
+    if (input & BTN_RIGHT_SHORT) menupoint->btn_right_action();
+    if (input & BTN_CENTER_SHORT) menupoint->btn_center_action();
     if (input & BTN_LEFT_LONG) menupoint->btn_left_long_action();
     if (input & BTN_RIGHT_LONG) menupoint->btn_right_long_action();
     if (input & BTN_CENTER_LONG) menupoint->btn_center_long_action();
@@ -700,5 +724,6 @@ void loop() {
   }
 
   menupoint->command();
+
 
 }
