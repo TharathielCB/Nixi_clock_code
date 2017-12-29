@@ -7,9 +7,11 @@
 
 
 void nixie_display::setup_pins() {
+    mcp->begin();
     mcp->pinMode(hv_pin, OUTPUT);
     mcp->pinMode(data_pin, OUTPUT);
     mcp->pinMode(clk_pin, OUTPUT);
+    mcp->pinMode(strobe_pin, OUTPUT);
 }
 
 void nixie_display::clr() {
@@ -17,15 +19,17 @@ void nixie_display::clr() {
 }
 
 void nixie_display::on() {
-    digitalWrite(hv_pin, LOW);
+    mcp->digitalWrite(hv_pin, LOW);
+    Serial.println("HV on!!!");
 }
 
 void nixie_display::off(){
-    digitalWrite(hv_pin, HIGH);
+    mcp->digitalWrite(hv_pin, HIGH);
+    Serial.println("HV off!");
 }
 
 void nixie_display::toggle() {
-    if (digitalRead(hv_pin)) {
+    if (mcp->digitalRead(hv_pin)) {
       on();
     } else {
       off();
@@ -33,22 +37,26 @@ void nixie_display::toggle() {
 }
 
 void nixie_display::shift_bit(uint8 value) {
+    mcp->digitalWrite(strobe_pin, LOW);
 
     if ( value==0) {
-        digitalWrite(data_pin, HIGH);
+        mcp->digitalWrite(data_pin, HIGH);
     } else {
-        digitalWrite(data_pin,LOW);
+        mcp->digitalWrite(data_pin,LOW);
     };
 
-    digitalWrite(clk_pin, HIGH);
+    mcp->digitalWrite(clk_pin, HIGH);
     delay(shift_delay);
-    digitalWrite(clk_pin, LOW);
+    mcp->digitalWrite(clk_pin, LOW);
     delay(shift_delay);
+
+    mcp->digitalWrite(strobe_pin, LOW);
 }
 
 nixie_display::nixie_display(Adafruit_MCP23008 *portexpander) {
     mcp = portexpander;
     setup_pins();
+
 }
 
 void nixie_display::set_delay(uint16 delay) {

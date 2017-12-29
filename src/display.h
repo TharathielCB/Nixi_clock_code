@@ -9,7 +9,7 @@ private:
     uint8_t data_pin = 1;
     uint8_t clk_pin = 2;
     uint8_t strobe_pin = 3;
-    uint16 shift_delay = 5;
+    uint16 shift_delay = 5; // make change of value look fancy
     Adafruit_MCP23008 *mcp;
     void setup_pins();
 

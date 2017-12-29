@@ -28,6 +28,7 @@ WiFiUDP ntpUDP;
 int i = 0;
 uint8 red_value, blue_value, green_value = 0;
 int8 red_step, blue_step, green_step = 0;
+uint16_t blink_time = 0;
 
 // define buttons
 #define BTN_LEFT 0
@@ -57,6 +58,11 @@ unsigned long btn_endtime;
 
 #define LED_COUNT 4                   // define number of ws2812 leds
 #define LED_PIN 13                    // define Pin where WS2812 connected to
+
+#define DATA_PIN 1
+#define CLK_PIN 2
+#define STROBE_PIN 3
+#define HV_PIN 4
 
 #define BRIGHTNESS_STEP 15              // in/decrease brightness by this amount per click
 #define SPEED_STEP 5
@@ -497,8 +503,6 @@ void setup(){
   static WiFiEventHandler e1, e2;
   Serial.begin(115200);
   EEPROM.begin(4096);
-  display.off();
-  display.print(0);
   strip.begin();
   mcp.pinMode(BTN_LEFT, INPUT);
   mcp.pinMode(BTN_CENTER, INPUT);
@@ -506,6 +510,12 @@ void setup(){
   mcp.pullUp(BTN_LEFT, HIGH);  // turn on a 100K pullup internally
   mcp.pullUp(BTN_RIGHT, HIGH);  // turn on a 100K pullup internally
   mcp.pullUp(BTN_CENTER, HIGH);  // turn on a 100K pullup internally
+  mcp.pinMode(HV_PIN, OUTPUT);
+  mcp.pinMode(CLK_PIN, OUTPUT);
+  mcp.pinMode(DATA_PIN, OUTPUT);
+  mcp.pinMode(STROBE_PIN, OUTPUT);
+  display.off();
+  display.print(0);
 
   pinMode(BTN_PROG,INPUT_PULLUP);
   // set startdate to 0:0 1/1/2018
@@ -724,6 +734,7 @@ void loop() {
   }
 
   menupoint->command();
+
 
 
 }
