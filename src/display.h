@@ -1,5 +1,6 @@
 #ifndef DISPLAY_H
 #define DISPLAY_H
+#include <Time.h>
 #include "Arduino.h"
 #include "Adafruit_MCP23008.h" //port expander
 
@@ -21,8 +22,10 @@ public:
     void off();
     void toggle();
     void clr();
-    void shift_bit(uint8 value);
+    void shift_bit(uint8 value, uint16 delay_us);
     void print(uint16 value);
+    void print(uint16 value, uint16 delay_us);
+
     void set_delay(uint16 delay);
     uint16 get_delay();
 };

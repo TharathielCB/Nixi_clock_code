@@ -12,6 +12,7 @@
 #include <EEPROM.h>
 #include <PubSubClient.h>
 #include <ESP8266WebServer.h>
+#include <DS3231.h>
 
 #include "display.h"
 #include "webserving.h"
@@ -71,6 +72,8 @@ unsigned long btn_endtime;
 #define LED_ON 1
 #define LED_FADING 2
 
+
+DS3231 RTCClock;
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_MCP23008 mcp; // create port-expander-session
 PubSubClient mqtt_connector;
@@ -647,9 +650,10 @@ void setup(){
 }
 
 void loop() {
-
-
-
+  if (second() == 0) {
+	   Serial.print("T=");
+	    Serial.print(RTCClock.getTemperature(), 2);
+  }
   if (WiFi.isConnected()) {
     if (!mqtt_connector.connected()) {
       if (now() - mqtt_connection_time > 5) {

@@ -15,7 +15,7 @@ void nixie_display::setup_pins() {
 }
 
 void nixie_display::clr() {
-    for (uint8 i=0; i<50; i++) shift_bit(LOW);
+    for (uint8 i=0; i<64; i++) shift_bit(LOW,1);
 }
 
 void nixie_display::on() {
@@ -36,27 +36,23 @@ void nixie_display::toggle() {
     }
 }
 
-void nixie_display::shift_bit(uint8 value) {
-    mcp->digitalWrite(strobe_pin, LOW);
+void nixie_display::shift_bit(uint8 value, uint16 delay_value) {
+    mcp->digitalWrite(strobe_pin, HIGH);
+    mcp->digitalWrite(clk_pin, HIGH);
+    delayMicroseconds(delay_value);
 
     if ( value==0) {
-        mcp->digitalWrite(data_pin, HIGH);
+        mcp->digitalWrite(data_pin, LOW);
     } else {
-        mcp->digitalWrite(data_pin,LOW);
+        mcp->digitalWrite(data_pin,HIGH);
     };
-
-    mcp->digitalWrite(clk_pin, HIGH);
-    delay(shift_delay);
     mcp->digitalWrite(clk_pin, LOW);
-    delay(shift_delay);
-
-    mcp->digitalWrite(strobe_pin, LOW);
+    delayMicroseconds(delay_value);
 }
 
 nixie_display::nixie_display(Adafruit_MCP23008 *portexpander) {
     mcp = portexpander;
     setup_pins();
-
 }
 
 void nixie_display::set_delay(uint16 delay) {
@@ -68,20 +64,18 @@ uint16 nixie_display::get_delay() {
 }
 
 void nixie_display::print(uint16 value) {
+    print(value, shift_delay * 1000);
+}
+
+void nixie_display::print(uint16 value, uint16 delay_us) {
     uint8 i;
     uint8 digit[4];
-    uint8 sr_bits[64] = {0};
-    uint8 bitlist_lsb[10] = {7,11,12,13,14,10,8,9,5,6};
-    uint8 bitlist_msb[10] = {18,2,3,4,19,0,1,15,16,17};
-  // Pin-Mapping of Shift-Register ->Nixie-Tubes
-	uint8 bitlist_tube0[10] = {10,0,3,4,5,6,7,8,9,11};
-	uint8 bitlist_tube1[10] = {19,12,11,10,13,14,15,16,17,18};
-	uint8 bitlist_tube2[10] = {32+15,32+10,32+11,32+12,32+13,32+14,32+19,32+18,32+17,32+16};
-	uint8 bitlist_tube3[10] = {32+30,32+21,32+22,32+23,32+24,32+25,32+26,32+27,32+28,32+29};
-
-	// 5 6,1,2,3                     7 8 9 0 4
-    //           8 9 0 6 7 5 1 2 3 4
-
+    uint8 sr_bits[64] = { 0 };
+    // Pin-Mapping of Shift-Register ->Nixie-Tubes
+  	uint8 bitlist_tube0[10] = { 8, 0, 1, 2, 3, 4, 5, 6, 7, 9};
+  	uint8 bitlist_tube1[10] = {19,12,11,10,13,14,15,16,17,18};
+  	uint8 bitlist_tube2[10] = {47,42,43,44,45,46,51,50,49,48};
+  	uint8 bitlist_tube3[10] = {62,53,54,55,56,57,58,59,60,61};
 
     // extract digits from value
     for (i = 0; i < 4; i++){
@@ -93,7 +87,11 @@ void nixie_display::print(uint16 value) {
     sr_bits[bitlist_tube1[digit[1]]] = HIGH;
     sr_bits[bitlist_tube2[digit[2]]] = HIGH;
     sr_bits[bitlist_tube3[digit[3]]] = HIGH;
+    // additionally fill space between tubes with values
+    // -> looks better while shifting
+    sr_bits[bitlist_tube2[digit[2]]-10] = HIGH;
+    sr_bits[bitlist_tube1[digit[1]]+10] = HIGH;
 
-    for (i = 0; i < 64; i++) shift_bit(sr_bits[63-i]);
-    // shift_bit(0);
+    shift_bit(0,1);
+    for (i = 0; i < 64; i++) shift_bit(sr_bits[63-i], delay_us);
 }
