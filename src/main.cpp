@@ -75,6 +75,8 @@ unsigned long btn_endtime;
 
 DS3231 RTCClock;
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
+uint32_t led_colors[LED_COUNT] = {0};
+
 Adafruit_MCP23008 mcp; // create port-expander-session
 PubSubClient mqtt_connector;
 MDNSResponder mdns;
@@ -86,9 +88,9 @@ String ntp_server;
 String mqtt_server;
 String password;
 char hostString[16] = {0};
-uint8_t oldsec;
 uint8 led_mode = 0;
 uint8 input = 0;
+uint8 oldsec = 0;
 
 uint32 mqtt_connection_time = 0;
 
@@ -175,7 +177,7 @@ void inc_hour() {
     if (edit_number > 2359) {
       edit_number -= 2400;
     }
-    display.print(edit_number);
+    display.printh(edit_number);
     return;
 }
 
@@ -184,7 +186,7 @@ void dec_hour() {
     if (edit_number < 0) {
       edit_number += 2400;
     }
-    display.print(edit_number);
+    display.printh(edit_number);
     return;
 }
 
@@ -193,7 +195,7 @@ void inc_day() {
     if (edit_number > 3112) {
         edit_number -= 3000;
     }
-    display.print(edit_number);
+    display.printh(edit_number);
 }
 
 void dec_day() {
@@ -201,7 +203,7 @@ void dec_day() {
     if (edit_number < 0) {
       edit_number += 3100;
     }
-    display.print(edit_number);
+    display.printh(edit_number);
     return;
 }
 
@@ -211,7 +213,7 @@ void inc_minute() {
     minute += 1;
     if (minute > 59) minute = 0;
     edit_number = hour + minute;
-    display.print(edit_number);
+    display.printh(edit_number);
     return;
 }
 
@@ -221,7 +223,7 @@ void dec_minute() {
   minute -= 1;
   if (minute < 0) minute = 59;
   edit_number = hour + minute;
-  display.print(edit_number);
+  display.printh(edit_number);
   return;
 }
 
@@ -231,7 +233,7 @@ void inc_month() {
     month += 1;
     if (month > 12) month = 1;
     edit_number = day + month;
-    display.print(edit_number);
+    display.printh(edit_number);
     return;
 }
 
@@ -241,21 +243,21 @@ void dec_month() {
   month -= 1;
   if (month < 1) month= 12;
   edit_number = day + month;
-  display.print(edit_number);
+  display.printh(edit_number);
   return;
 }
 
 void inc_year() {
   edit_number += 1;
   if (edit_number > 2100) edit_number=1970; // assume that this clock works only till year 2100
-  display.print(edit_number);
+  display.printh(edit_number);
   return;
 }
 
 void dec_year() {
   edit_number -= 1;
   if (edit_number < 1970) edit_number=2100; // don't set year prior to 1970
-  display.print(edit_number);
+  display.printh(edit_number);
   return;
 }
 
@@ -644,16 +646,26 @@ void setup(){
   green_value = 0x05;
   blue_value = 0x00;
   for (int i=0; i< LED_COUNT; i++) {
-    strip.setPixelColor(i, strip.Color(red_value, green_value, blue_value));
+    led_colors[i]=strip.Color(red_value, green_value, blue_value);
   }
   strip.show();
 }
 
 void loop() {
-  if (second() == 0) {
-	   Serial.print("T=");
-	    Serial.print(RTCClock.getTemperature(), 2);
+
+  // Redraw LEDs once in a sec
+  if (oldsec != second()) {
+    for (int i=0; i<LED_COUNT; i++) {
+      strip.setPixelColor(i, led_colors[i]);
+      Serial.print("Color: ");
+      Serial.print(led_colors[i]);
+      Serial.print("\n\r");
+    }
+    strip.show();
   }
+  oldsec = second();
+
+
   if (WiFi.isConnected()) {
     if (!mqtt_connector.connected()) {
       if (now() - mqtt_connection_time > 5) {

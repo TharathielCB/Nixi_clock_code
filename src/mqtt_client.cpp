@@ -23,15 +23,14 @@ void mqtt_reconnect() {
     mqtt_connector.subscribe("nixieClock/display");
     mqtt_connector.subscribe("nixieClock/power");
     mqtt_connector.subscribe("nixieClock/leds");
-  //  mqtt_connector.subscribe("nixieClock/leds/0");
-  //  mqtt_connector.subscribe("nixieClock/leds/1");
-  //  mqtt_connector.subscribe("nixieClock/leds/2");
-  //  mqtt_connector.subscribe("nixieClock/leds/3");
+    mqtt_connector.subscribe("nixieClock/mode");
+
+    mqtt_connector.subscribe("nixieClock/led/");
   } else {
    Serial.print("failed, rc=");
    Serial.print(mqtt_connector.state());
    Serial.println(" try again in 5 seconds");
-   
+
    }
   }
 }
@@ -48,7 +47,6 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   for (int i=0;i<length;i++) {
    char receivedChar = (char)payload[i];
    message += receivedChar;
-   Serial.print(receivedChar);
 
    }
    Serial.println();
@@ -57,6 +55,13 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         // Print given numbers on display
         Serial.println("Displaying message");
         display.print(message.toInt());
+   }
+
+   if (!strcmp(topic, "nixieClock/mode")) {
+        // Switch mode between "time", "date", "year"
+        if (strcmp(message.c_str(),"time")==0) menupoint = &menu_time;
+        if (strcmp(message.c_str(),"date")==0) menupoint = &menu_date;
+        if (strcmp(message.c_str(),"year")==0) menupoint = &menu_year;
    }
 
    if (!strcmp(topic, "nixieClock/power")) {
@@ -87,8 +92,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
             uint8 green = (uint8)strtol(green_h, NULL, 16);
             uint8 blue = (uint8)strtol(blue_h, NULL, 16);
 
-            for (uint8 i=0; i<4; i++) strip.setPixelColor(i, strip.Color(red,green,blue));
-            strip.show();
+            for (uint8 i=0; i<4; i++) led_colors[i] = strip.Color(red,green,blue);
 
         } else if (length==7 && (char)payload[0] == '#') {
 
@@ -106,21 +110,15 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
             uint8 green = (uint8)strtol(green_h, NULL, 16);
             uint8 blue = (uint8)strtol(blue_h, NULL, 16);
 
-            for (uint8 i=0; i<4; i++) strip.setPixelColor(i, strip.Color(red,green,blue));
-            strip.show();
+            for (uint8 i=0; i<4; i++) led_colors[i] = strip.Color(red,green,blue);
 
         } else if (length==12) {
             // read rgb values for all 4 leds interpret every byte as uint8
-            for (int i=0; i<4; i++)
-                strip.setPixelColor(i, strip.Color((uint8) payload[i*3+0], (uint8) payload[i*3+1], (uint8) payload[i*3+2]));
-            strip.show();
+            // for (uint8 i=0; i<4; i++) led_colors[i] = strip.Color(red,green,blue);
         } else if (length==1){
             // if '0' is send switch all leds off
             if ((char) payload[0] == '0') {
-                for (int i=0; i<4; i++) {
-                    strip.setPixelColor(i, strip.Color(0,0,0));
-                }
-                strip.show();
+                for (uint8 i=0; i<4; i++) led_colors[i] = strip.Color(0,0,0);
             }
         }
         else {
@@ -130,7 +128,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
 
 
 
-    if (!strcmp(topic,"nixieClock/leds/0")) {
+    if (!strcmp(topic,"nixieClock/led/0")) {
         // receive rgb_values for first led (hex) e.g. ffffff
         if (length==6) {
 
@@ -144,14 +142,11 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
             uint8 red = (uint8)strtol(red_h, NULL, 16);
             uint8 green = (uint8)strtol(green_h, NULL, 16);
             uint8 blue = (uint8)strtol(blue_h, NULL, 16);
-            Serial.print("Setting LED ");
-            Serial.println(red);
-            strip.setPixelColor(0, strip.Color(red,green,blue));
-            strip.show();
-        }
+            led_colors[0] = strip.Color(red,green,blue);
+          }
     }
 
-    if (!strcmp(topic,"nixieClock/leds/1")) {
+    if (!strcmp(topic,"nixieClock/led/1")) {
         // receive rgb_values for first led (hex) e.g. ffffff
         if (length==6) {
 
@@ -165,13 +160,12 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
             uint8 red = (uint8)strtol(red_h, NULL, 16);
             uint8 green = (uint8)strtol(green_h, NULL, 16);
             uint8 blue = (uint8)strtol(blue_h, NULL, 16);
+            led_colors[1] = strip.Color(red,green,blue);
 
-            strip.setPixelColor(1, strip.Color(red,green,blue));
-            strip.show();
         }
     }
 
-    if (!strcmp(topic,"nixieClock/leds/2")) {
+    if (!strcmp(topic,"nixieClock/led/2")) {
         // receive rgb_values for first led (hex) e.g. ffffff
         if (length==6) {
 
@@ -192,7 +186,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         }
     }
 
-    if (!strcmp(topic,"nixieClock/leds/3")) {
+    if (!strcmp(topic,"nixieClock/led/3")) {
         // receive rgb_values for first led (hex) e.g. ffffff
         if (length==6) {
 

@@ -37,15 +37,14 @@ void nixie_display::toggle() {
 }
 
 void nixie_display::shift_bit(uint8 value, uint16 delay_value) {
-    mcp->digitalWrite(strobe_pin, HIGH);
     mcp->digitalWrite(clk_pin, HIGH);
     delayMicroseconds(delay_value);
 
     if ( value==0) {
         mcp->digitalWrite(data_pin, LOW);
     } else {
-        mcp->digitalWrite(data_pin,HIGH);
-    };
+        mcp->digitalWrite(data_pin, HIGH);
+    }
     mcp->digitalWrite(clk_pin, LOW);
     delayMicroseconds(delay_value);
 }
@@ -64,8 +63,20 @@ uint16 nixie_display::get_delay() {
 }
 
 void nixie_display::print(uint16 value) {
+    mcp->digitalWrite(strobe_pin, HIGH);
     print(value, shift_delay * 1000);
 }
+
+
+/**
+* Print immediately without visible shift
+*/
+void nixie_display::printh(uint16 value) {
+    mcp->digitalWrite(strobe_pin, LOW);
+    print(value, 1);
+    mcp->digitalWrite(strobe_pin, HIGH);
+}
+
 
 void nixie_display::print(uint16 value, uint16 delay_us) {
     uint8 i;

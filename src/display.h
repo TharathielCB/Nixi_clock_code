@@ -24,6 +24,7 @@ public:
     void clr();
     void shift_bit(uint8 value, uint16 delay_us);
     void print(uint16 value);
+    void printh(uint16 value);
     void print(uint16 value, uint16 delay_us);
 
     void set_delay(uint16 delay);
