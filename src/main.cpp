@@ -1,4 +1,3 @@
-#include <NtpClientLib.h>
 #include <TimeLib.h>
 #include <Time.h>
 // change next line to use with another board/shield
@@ -12,17 +11,16 @@
 #include <EEPROM.h>
 #include <PubSubClient.h>
 #include <ESP8266WebServer.h>
-#include <DS3231.h>
 
 #include "display.h"
 #include "webserving.h"
 #include "mqtt_client.h"
 #include "btnmenu.h"
+#include "timehandling.h"
 #include <Wire.h>       // i²c library
 #include "Adafruit_MCP23008.h" //port expander
 
 const char *ssid = "nixieClock";
-WiFiUDP ntpUDP;
 
  int number = 0;
  int oldnumber = 0;
@@ -30,6 +28,7 @@ int i = 0;
 uint8 red_value, blue_value, green_value = 0;
 int8 red_step, blue_step, green_step = 0;
 uint16_t blink_time = 0;
+boolean hasRTC;
 
 // define buttons
 #define BTN_LEFT 0
@@ -73,7 +72,6 @@ unsigned long btn_endtime;
 #define LED_FADING 2
 
 
-DS3231 RTCClock;
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 uint32_t led_colors[LED_COUNT] = {0};
 
@@ -91,6 +89,7 @@ char hostString[16] = {0};
 uint8 led_mode = 0;
 uint8 input = 0;
 uint8 oldsec = 0;
+nixieTimer clock;
 
 uint32 mqtt_connection_time = 0;
 
@@ -102,14 +101,16 @@ node* menupoint = &menu_time;
 void next_menupoint() {
   menupoint = menupoint->next;
 }
-
 void prev_menupoint() {
   menupoint = menupoint->prev;
 }
 
+
 void show_time() {
   oldnumber = number;
-  number = hour() * 100 + minute();
+//  number = clock.hour() * 100 + clock.minute();
+  number = clock.get_hour() * 100 + clock.get_minute();
+
   if (number != oldnumber ) {
     display.print(number);
     Serial.println(number);
@@ -118,7 +119,7 @@ void show_time() {
 
 void show_year() {
   oldnumber = number;
-  number = year();
+  number = clock.get_year();
   if (number != oldnumber) {
     display.print(number);
     Serial.println(number);
@@ -127,7 +128,7 @@ void show_year() {
 
 void show_date() {
   oldnumber = number;
-  number = day() * 100 + month();
+  number = clock.get_day() * 100 + clock.get_month();
   if (number != oldnumber) {
     display.print(number);
     Serial.println(number);
@@ -146,8 +147,9 @@ void nixies_toggle() {
 // Start NTP only after IPnetwork is connected
 void onSTAGotIP(WiFiEventStationModeGotIP ipInfo) {
 	Serial.printf("Got IP: %s\r\n", ipInfo.ip.toString().c_str());
-	NTP.begin(ntp_server.c_str(), 1, true);
-	NTP.setInterval(63);
+  clock.fetch_ntptime();
+  // NTP.begin(ntp_server.c_str(), 1, true);
+	// NTP.setInterval(63);
 }
 
 
@@ -324,7 +326,7 @@ void editing_year() {
 
 // start time-edit mode,
 void edit_time() {
-  edit_number = hour() * 100 + minute();
+  edit_number = clock.get_hour() * 100 + clock.get_minute();
   menupoint = &menu_edit_hour;
   display.print(edit_number);
   return;
@@ -335,9 +337,10 @@ void save_time() {
   // switch leds off
   for (int i=0; i<4; i++) strip.setPixelColor(i, strip.Color(0,0,0));
   strip.show();
-  int m = edit_number % 100;
-  int h = (edit_number - m) / 100;
-  setTime(h,m,0,day(),month(),year());
+  uint8_t m = edit_number % 100;
+  uint8_t h = (edit_number - m) / 100;
+  clock.set_minute(m);
+  clock.set_hour(h);
   menupoint = &menu_time;
   for (int i=0; i<4; i++) strip.setPixelColor(i, strip.Color(0,0,0));
   strip.show();
@@ -346,7 +349,7 @@ void save_time() {
 
 // start date-edit mode
 void edit_date() {
-  edit_number = day() * 100 + month();
+  edit_number = clock.get_day() * 100 + clock.get_month();
   menupoint = &menu_edit_day;
   display.print(edit_number);
   return;
@@ -356,9 +359,10 @@ void save_date() {
   // switch leds off
   for (int i=0; i<4; i++) strip.setPixelColor(i, strip.Color(0,0,0));
   strip.show();
-  int m = edit_number % 100;
-  int d = (edit_number - m) / 100;
-  setTime(hour(),minute(),second(),d,m,year());
+  uint8_t m = edit_number % 100;
+  uint8_t d = (edit_number - m) / 100;
+  clock.set_month(m);
+  clock.set_day(d);
   menupoint = &menu_date;
   for (int i=0; i<4; i++) strip.setPixelColor(i, strip.Color(0,0,0));
   strip.show();
@@ -367,7 +371,7 @@ void save_date() {
 
 // start year-edit Mode
 void edit_year() {
-  edit_number = year();
+  edit_number = clock.get_year();
   menupoint = &menu_edit_year;
   display.print(edit_number);
   return;
@@ -378,27 +382,11 @@ void save_year() {
   for (int i=0; i<4; i++) strip.setPixelColor(i, strip.Color(0,0,0));
   strip.show();
   menupoint = &menu_year;
-  setTime(hour(),minute(),second(),day(),month(),edit_number);
+  clock.set_year(edit_number);
   return;
 }
 
 
-void processSyncEvent(NTPSyncEvent_t ntpEvent) {
-	if (ntpEvent) {
-		Serial.print("Time Sync error: ");
-		if (ntpEvent == noResponse)
-			Serial.println("NTP server not reachable");
-		else if (ntpEvent == invalidAddress)
-			Serial.println("Invalid NTP server address");
-	}
-	else {
-		Serial.print("Got NTP time: ");
-		Serial.println(NTP.getTimeDateString(NTP.getLastNTPSync()));
-	}
-}
-
-boolean syncEventTriggered = false; // True if a time even has been triggered
-NTPSyncEvent_t ntpEvent; // Last triggered event
 
 /**
  * Save POST-Argument from Webserver-request to EEPROM
@@ -504,6 +492,7 @@ void setup(){
 
   Wire.begin();
   mcp.begin();
+
   // Read configured Wifi-Settings
   static WiFiEventHandler e1, e2;
   Serial.begin(115200);
@@ -525,6 +514,7 @@ void setup(){
   pinMode(BTN_PROG,INPUT_PULLUP);
   // set startdate to 0:0 1/1/2018
   setTime(0,0,0,1,1,2018);
+  clock.begin();
 
   // Enter Config_mode if prog_btn is pressed during startup
   if (!digitalRead(BTN_PROG)) {
@@ -626,11 +616,6 @@ void setup(){
   WiFi.mode(WIFI_STA);
   WiFi.begin(essid.c_str(), epass.c_str());
 
-	NTP.onNTPSyncEvent([](NTPSyncEvent_t event) {
-		ntpEvent = event;
-		syncEventTriggered = true;
-	});
-
   e1 = WiFi.onStationModeGotIP(onSTAGotIP);// As soon WiFi is connected, start NTP Client
 
   server.begin();
@@ -657,9 +642,6 @@ void loop() {
   if (oldsec != second()) {
     for (int i=0; i<LED_COUNT; i++) {
       strip.setPixelColor(i, led_colors[i]);
-      Serial.print("Color: ");
-      Serial.print(led_colors[i]);
-      Serial.print("\n\r");
     }
     strip.show();
   }
