@@ -4,6 +4,7 @@
     #include <WiFiUdp.h>
     #include "Arduino.h"
     #include <Time.h>
+    #include <NTPClient.h>
 
     // #include <TimeLib.h>
     // #include "uRTCLib.h"
@@ -21,13 +22,17 @@
 
     extern String ntp_server;
 
-    void setDS3231time(byte second, byte minute, byte hour, byte dayOfWeek, byte
+
+    void setDS3231time(byte second, byte minute, byte hour, byte
         dayOfMonth, byte month, byte year);
     void readDS3231time(byte *second, byte *minute, byte *hour, byte *dayOfWeek,
         byte *dayOfMonth, byte *month, byte *year);
 
     class nixieTimer {
     private:
+      WiFiUDP* ntp_udp;
+      NTPClient* time_client;
+
       bool hasRTC = false;
       byte _sec, _min, _hour, _dayOfWeek, _dayOfMonth, _month, _year;
       // uRTCLib hw_rtc;

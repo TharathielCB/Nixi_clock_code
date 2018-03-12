@@ -460,6 +460,10 @@ void config_mode() {
   char colorstep = 1;
   unsigned int btnstate = 0x00;
   unsigned int oldbtnstate = 0x00;
+  uint16_t value = 0;
+  uint16_t oldvalue = 0;
+  uint8_t oldsec = 0;
+  bool nixie_test = false;
   // Main-Loop of Configuration-Mode
   while(1) {
     // Check if center btn is released
@@ -467,6 +471,30 @@ void config_mode() {
     btnstate = check_buttons();
     if (oldbtnstate & BTN_CENTER_PRESSED && !(btnstate & BTN_CENTER_PRESSED))
         ESP.restart();
+
+    // Nixie-Test Mode: press left BUTTON in CONFIG-MODE
+    if (oldbtnstate & BTN_LEFT_PRESSED && !(btnstate & BTN_LEFT_PRESSED))
+        if (nixie_test) {
+          nixie_test = false;
+          display.off();
+        } else {
+          nixie_test = true;
+          display.on();
+          value = 0;
+        }
+
+
+    if (nixie_test && oldsec != second()) {
+      value += 1111;
+      if (value > 9999) value = 0;
+      oldsec = second();
+    }
+
+    if (oldvalue != value) {
+      display.printh(value);
+      oldvalue = value;
+    }
+
     // While in config-mode blue leds are fading
     blue += colorstep;
     for (int i=0; i< LED_COUNT; i++)

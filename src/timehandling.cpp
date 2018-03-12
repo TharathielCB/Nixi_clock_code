@@ -2,6 +2,19 @@
 
 byte ntp_buffer[ NTP_PACKET_SIZE];
 WiFiUDP udp; // A UDP instance to let us send and receive packets over UDP
+NTPClient tc(udp, ntp_server.c_str());
+
+bool is_dst(int day, int month, int dow) {
+        if (month < 3 || month > 10)  return false;
+        if (month > 3 && month < 10)  return true;
+
+        int previousSunday = day - dow;
+
+        if (month == 3) return previousSunday >= 25;
+        if (month == 10) return previousSunday < 25;
+
+        return false; // this line never gonna happend
+    }
 
 // Convert normal decimal numbers to binary coded decimal
 byte decToBcd(byte val)
@@ -49,7 +62,7 @@ dayOfMonth, byte month, byte year)
 
 
 // send an NTP request to the time server at the given address
-unsigned long sendNTPpacket(String& address)
+unsigned long sendNTPpacket(const char* address)
 {
   Serial.println("sending NTP packet...");
   // set all bytes in the buffer to 0
@@ -60,7 +73,7 @@ unsigned long sendNTPpacket(String& address)
   ntp_buffer[1] = 0;     // Stratum, or type of clock
   ntp_buffer[2] = 6;     // Polling Interval
   ntp_buffer[3] = 0xEC;  // Peer Clock Precision
-  // 8 bytes of zero for Root Delay & Root Dispersion
+  // 8 bytes of zero for Root De   Udp.write(packetBuffer, NTP_PACKET_SIZE);lay & Root Dispersion
   ntp_buffer[12]  = 49;
   ntp_buffer[13]  = 0x4E;
   ntp_buffer[14]  = 49;
@@ -68,17 +81,18 @@ unsigned long sendNTPpacket(String& address)
 
   // all NTP fields have been given values, now
   // you can send a packet requesting a timestamp:
-  udp.beginPacket(address.c_str() , 123); //NTP requests are to port 123
+  udp.beginPacket(address, 123); //NTP requests are to port 123
   udp.write(ntp_buffer, NTP_PACKET_SIZE);
   udp.endPacket();
 }
 
 
 nixieTimer::nixieTimer(){
-
+    time_client = &tc;
 }
 
 void nixieTimer::begin() {
+  udp.begin(1337);
   Wire.beginTransmission(DS3231_I2C_ADDRESS);
   if (Wire.endTransmission () == 0) {
     Serial.println("Found MAXDS3231 RTC");
@@ -113,61 +127,49 @@ void nixieTimer::store_time() {
     byte dow = 1;
     byte y = _year - 2000;
     setDS3231time(_sec, _min, _hour, dow, _dayOfMonth, _month, y);
+
   }
 
 }
 
 void nixieTimer::fetch_ntptime() {
-  sendNTPpacket(ntp_server);
+  Serial.println("Update Time");
+  // time_client->update();
+  // set_time(time_client->getEpochTime());
+
+  Serial.println("Sending ntp package.");
+  sendNTPpacket(ntp_server.c_str());
+  Serial.println(ntp_server);
+  // wait to see if a reply is available
   delay(1000);
-  int cb = udp.parsePacket();
-  if (!cb) {
-    Serial.println("got no answer from NTP-Serer");
-  } else {
-    Serial.print("Got answer from NTP-Server ");
-    Serial.print(ntp_server);
-    udp.read(ntp_buffer, NTP_PACKET_SIZE);
+  if (udp.parsePacket()) {
+    // We've received a packet, read the data from it
+    udp.read(ntp_buffer, NTP_PACKET_SIZE); // read the packet into the buffer
 
+    // the timestamp starts at byte 40 of the received packet and is four bytes,
+    // or two words, long. First, extract the two words:
 
-    // NTP contains four timestamps with an integer part and a fraction part
-    // we only use the integer part here
-    unsigned long t1, t2, t3, t4;
-    t1 = t2 = t3 = t4 = 0;
-    for (int i = 0; i < 4; i++)
-    {
-      t1 = t1 << 8 | ntp_buffer[16 + i];
-      t2 = t2 << 8 | ntp_buffer[24 + i];
-      t3 = t3 << 8 | ntp_buffer[32 + i];
-      t4 = t4 << 8 | ntp_buffer[40 + i];
+    unsigned long highWord = word(ntp_buffer[40], ntp_buffer[41]);
+    unsigned long lowWord = word(ntp_buffer[42], ntp_buffer[43]);
+    // combine the four bytes (two words) into a long integer
+    // this is NTP time (seconds since Jan 1 1900):
+    unsigned long secsSince1900 = highWord << 16 | lowWord;
+    // now convert NTP time into everyday time:
+    // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
+    const unsigned long seventyYears = 2208988800UL;
+    // subtract seventy years:
+    unsigned long epoch = secsSince1900 - seventyYears;
+    Serial.print(epoch);
+    set_time(epoch);
+
+    // Finally adjust daylight_saving time
+    if (is_dst(_min, _hour, _dayOfWeek(epoch))) {
+      set_time(epoch + 3600);
     }
-
-    // part of the fractional part
-    // could be 4 bytes but this is more precise than the 1307 RTC
-    // which has a precision of ONE second
-    // in fact one byte is sufficient for 1307
-    float f1, f2, f3, f4;
-    f1 = ((long)ntp_buffer[20] * 256 + ntp_buffer[21]) / 65536.0;
-    f2 = ((long)ntp_buffer[28] * 256 + ntp_buffer[29]) / 65536.0;
-    f3 = ((long)ntp_buffer[36] * 256 + ntp_buffer[37]) / 65536.0;
-    f4 = ((long)ntp_buffer[44] * 256 + ntp_buffer[45]) / 65536.0;
-
-    // convert NTP to regular unix timestamp, differs seventy years = 2208988800 seconds
-    // ntp starts  1900
-    // unix time starts 1970
-#define SECONDS_FROM_1970_TO_2000 946684800
-    const unsigned long seventyYears = 2208988800UL + 946684800UL; //library differences, it wants seconds since 2000 not 1970
-    t1 -= seventyYears;
-    t2 -= seventyYears;
-    t3 -= seventyYears;
-    t4 -= seventyYears;
-    t4 += 1;               // adjust the delay(1000) at begin of loop!
-    if (f4 > 0.4) t4++;    // adjust fractional part, see above
-    set_time(t4);
-
+  } else {
+    Serial.println("No Answer from ntp_server");
   }
-
 }
-
 
 uint8_t nixieTimer::get_hour() {
   read_time();
@@ -193,12 +195,13 @@ uint16_t nixieTimer::get_year() {
 
 void nixieTimer::set_time(time_t t) {
   setTime(t);
-  set_year(year());
-  set_month(month());
-  set_day(day());
-  set_hour(hour());
-  set_minute(minute());
-  set_second(second());
+  setDS3231time(second(), minute(), hour(), dayOfWeek(), day(), month(), year());
+  _year = year();
+  _month = month();
+  _dayOfMonth = day();
+  _hour = hour();
+  _min = minute();
+  _sec = second();
 }
 
 void nixieTimer::set_month(uint8_t m) {

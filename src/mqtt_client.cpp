@@ -24,7 +24,7 @@ void mqtt_reconnect() {
     mqtt_connector.subscribe("nixieClock/power");
     mqtt_connector.subscribe("nixieClock/leds");
     mqtt_connector.subscribe("nixieClock/mode");
-
+    mqtt_connector.subscribe("nixieClock/ntp");
     mqtt_connector.subscribe("nixieClock/led/");
   } else {
    Serial.print("failed, rc=");
@@ -74,6 +74,13 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         }
     }
 
+   if (!strcmp(topic, "nixieClock/ntp")) {
+        //
+        char received_char = (char)payload[0];
+        if (received_char == '0') {
+          clock.fetch_ntptime();
+        }
+   }
     if (!strcmp(topic,"nixieClock/leds")) {
         // receive rgb_values for all leds
         if (length==6) {
