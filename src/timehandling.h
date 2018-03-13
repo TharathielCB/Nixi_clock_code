@@ -19,7 +19,7 @@
     #define DS3231_I2C_ADDRESS 0x68
     #define NTP_PACKET_SIZE 48
     #define byte uint8_t
-
+    #define dow(t) (int ((t / 86400) + 4) % 7)
     extern String ntp_server;
 
 

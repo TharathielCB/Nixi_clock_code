@@ -4,7 +4,8 @@ byte ntp_buffer[ NTP_PACKET_SIZE];
 WiFiUDP udp; // A UDP instance to let us send and receive packets over UDP
 NTPClient tc(udp, ntp_server.c_str());
 
-bool is_dst(int day, int month, int dow) {
+
+bool is_dst(int day, int month, int year, int dow) {
         if (month < 3 || month > 10)  return false;
         if (month > 3 && month < 10)  return true;
 
@@ -158,12 +159,14 @@ void nixieTimer::fetch_ntptime() {
     // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
     const unsigned long seventyYears = 2208988800UL;
     // subtract seventy years:
-    unsigned long epoch = secsSince1900 - seventyYears;
+    unsigned long epoch = secsSince1900 - seventyYears + 3600;
     Serial.print(epoch);
     set_time(epoch);
 
     // Finally adjust daylight_saving time
-    if (is_dst(_min, _hour, _dayOfWeek(epoch))) {
+    int day_of_week = dow(epoch);
+    if (is_dst(_dayOfMonth, _month, _year, day_of_week)) {
+      Serial.println("Daylight saving time");
       set_time(epoch + 3600);
     }
   } else {
@@ -195,7 +198,7 @@ uint16_t nixieTimer::get_year() {
 
 void nixieTimer::set_time(time_t t) {
   setTime(t);
-  setDS3231time(second(), minute(), hour(), dayOfWeek(), day(), month(), year());
+  setDS3231time(second(), minute(), hour(), day(), dow(t), month(), year());
   _year = year();
   _month = month();
   _dayOfMonth = day();
