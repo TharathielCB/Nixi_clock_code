@@ -30,7 +30,9 @@ String config_body() {
     body += "<div class=\"siimple-grid\">";
     body += "<div class=\"siimple-grid-row\">";
     body += "<div class=\"siimple-grid-col\"><label class=\"siimple-label\">SSID:</label></div>";
-    body += "<div class=\"siimple-grid-col\"><input type=\"text\" name=\"ssid\" class=\"siimple-input\" placeholder=\"YOUR-NETWORK\"></div>";
+    body += "<div class=\"siimple-grid-col\"><input type=\"text\" name=\"ssid\" class=\"siimple-input\" placeholder=\"";
+    // body += 
+    body += "\"></div>";
     body += "</div>";
     body += "<div class=\"siimple-grid-row\">";
     body += "<div class=\"siimple-grid-col\"><label class=\"siimple-label\">Wifi Password:</label></div>";

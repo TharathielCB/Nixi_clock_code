@@ -1,10 +1,10 @@
 #ifndef TIMEHANDLING
-    #define TIMEHANDLING
+    #define TIMEHANDLING 1
     #include <Wire.h>       // i²c library
     #include <WiFiUdp.h>
+    #include <ESP8266WiFi.h>
     #include "Arduino.h"
     #include <Time.h>
-    #include <NTPClient.h>
 
     // #include <TimeLib.h>
     // #include "uRTCLib.h"
@@ -22,6 +22,7 @@
     #define dow(t) (int ((t / 86400) + 4) % 7)
     extern String ntp_server;
 
+    extern WiFiUDP udp; // A UDP instance to let us send and receive packets over UDP
 
     void setDS3231time(byte second, byte minute, byte hour, byte
         dayOfMonth, byte month, byte year);
@@ -31,12 +32,14 @@
     class nixieTimer {
     private:
       WiFiUDP* ntp_udp;
-      NTPClient* time_client;
-
+      unsigned long last_ntp_sync;
+      uint16_t ntp_sync_intervall;
+      bool do_ntp_updates = true;
       bool hasRTC = false;
       byte _sec, _min, _hour, _dayOfWeek, _dayOfMonth, _month, _year;
       // uRTCLib hw_rtc;
       void read_time();
+      bool need_update();
 
 
     public:

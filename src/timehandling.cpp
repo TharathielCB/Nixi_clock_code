@@ -1,8 +1,6 @@
 #include "timehandling.h"
 
 byte ntp_buffer[ NTP_PACKET_SIZE];
-WiFiUDP udp; // A UDP instance to let us send and receive packets over UDP
-NTPClient tc(udp, ntp_server.c_str());
 
 
 bool is_dst(int day, int month, int year, int dow) {
@@ -79,17 +77,19 @@ unsigned long sendNTPpacket(const char* address)
   ntp_buffer[13]  = 0x4E;
   ntp_buffer[14]  = 49;
   ntp_buffer[15]  = 52;
-
+  Serial.println("loaded buffer");
   // all NTP fields have been given values, now
   // you can send a packet requesting a timestamp:
   udp.beginPacket(address, 123); //NTP requests are to port 123
   udp.write(ntp_buffer, NTP_PACKET_SIZE);
   udp.endPacket();
+  Serial.println("Sent package");
 }
 
 
 nixieTimer::nixieTimer(){
-    time_client = &tc;
+    ntp_sync_intervall = 3600; // default 1 hour sync intervall
+    last_ntp_sync = 0;
 }
 
 void nixieTimer::begin() {
@@ -112,6 +112,7 @@ void nixieTimer::begin() {
 void nixieTimer::read_time() {
   if (hasRTC) {
     readDS3231time(&_sec, &_min, &_hour, &_dayOfWeek, &_dayOfMonth, &_month, &_year);
+    _year += 2000;
   } else {
     _sec = second();
     _min = minute();
@@ -119,6 +120,10 @@ void nixieTimer::read_time() {
     _dayOfMonth = day();
     _month = month();
     _year = year() - 2000;
+  }
+
+  if (need_update()) {
+    fetch_ntptime();
   }
 }
 
@@ -133,17 +138,37 @@ void nixieTimer::store_time() {
 
 }
 
+/**
+* Check if a new update from ntp is needed.
+*
+*/
+bool nixieTimer::need_update() {
+  tmElements_t tm;
+  tm.Day = _dayOfMonth;
+  tm.Hour = _hour;
+  tm.Minute = _min;
+  tm.Month = _month;
+  tm.Year = _year;
+  tm.Second = _sec;
+
+  uint32_t t = makeTime(tm);
+  if (last_ntp_sync + ntp_sync_intervall < t && do_ntp_updates) return true;
+
+  return false;
+}
+
 void nixieTimer::fetch_ntptime() {
+  if (WiFi.isConnected()) {
   Serial.println("Update Time");
   // time_client->update();
   // set_time(time_client->getEpochTime());
 
-  Serial.println("Sending ntp package.");
   sendNTPpacket(ntp_server.c_str());
-  Serial.println(ntp_server);
+  Serial.print(ntp_server);
   // wait to see if a reply is available
   delay(1000);
   if (udp.parsePacket()) {
+    Serial.println(" got answer");
     // We've received a packet, read the data from it
     udp.read(ntp_buffer, NTP_PACKET_SIZE); // read the packet into the buffer
 
@@ -160,19 +185,21 @@ void nixieTimer::fetch_ntptime() {
     const unsigned long seventyYears = 2208988800UL;
     // subtract seventy years:
     unsigned long epoch = secsSince1900 - seventyYears + 3600;
-    Serial.print(epoch);
+    Serial.print("Calculated epoch=");
+    Serial.println(epoch);
     set_time(epoch);
-
+    last_ntp_sync = epoch;
     // Finally adjust daylight_saving time
     int day_of_week = dow(epoch);
     if (is_dst(_dayOfMonth, _month, _year, day_of_week)) {
       Serial.println("Daylight saving time");
       set_time(epoch + 3600);
+      last_ntp_sync=epoch +3600;
     }
   } else {
     Serial.println("No Answer from ntp_server");
   }
-}
+}}
 
 uint8_t nixieTimer::get_hour() {
   read_time();
@@ -198,7 +225,7 @@ uint16_t nixieTimer::get_year() {
 
 void nixieTimer::set_time(time_t t) {
   setTime(t);
-  setDS3231time(second(), minute(), hour(), day(), dow(t), month(), year());
+  if (hasRTC) setDS3231time(second(), minute(), hour(), day(), dow(t), month(), year());
   _year = year();
   _month = month();
   _dayOfMonth = day();
