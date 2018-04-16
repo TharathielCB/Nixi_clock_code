@@ -17,6 +17,7 @@
 #include "mqtt_client.h"
 #include "btnmenu.h"
 #include "timehandling.h"
+#include "config.h"
 #include <Wire.h>       // i²c library
 #include "Adafruit_MCP23008.h" //port expander
 
@@ -50,6 +51,7 @@ boolean hasRTC;
 #define BTN_CENTER_LONG 0x20
 #define BTN_PROG_SHORT 0x40
 
+WiFiUDP udp; // A UDP instance to let us send and receive packets over UDP
 uint8 btnstate = 0x00;
 uint8 old_btnstate = 0x00;
 unsigned long btn_starttimes[3];
@@ -388,25 +390,6 @@ void save_year() {
 
 
 
-/**
- * Save POST-Argument from Webserver-request to EEPROM
- *
- **/
-bool save_config(char* name, int start_address, int length) {
-  if (server.hasArg(name)) {
-      Serial.print("Save ");
-      Serial.print(name);
-      Serial.print(": ");
-      Serial.println(server.arg(name));
-      String value = server.arg(name);
-      for (int i = 0; i < length; ++i) EEPROM.write(start_address + i, 0);
-      for (int i=0; i < value.length(); ++i) EEPROM.write(start_address + i, value[i]);
-      EEPROM.commit();
-      return true;
-  } else {
-      return false;
-  }
-}
 
 /** Configuration Mode
  *  Start web-server to configure via webserver
@@ -507,19 +490,11 @@ void config_mode() {
   }
 }
 
-
-String read_config(uint16 start, uint16 length) {
-  String value;
-  for (int i =0; i<length; ++i) {
-    value += char(EEPROM.read(start + i));
-  }
-  return value;
-}
-
 void setup(){
 
   Wire.begin();
   mcp.begin();
+  clock.begin();
 
   // Read configured Wifi-Settings
   static WiFiEventHandler e1, e2;
@@ -542,7 +517,6 @@ void setup(){
   pinMode(BTN_PROG,INPUT_PULLUP);
   // set startdate to 0:0 1/1/2018
   setTime(0,0,0,1,1,2018);
-  clock.begin();
 
   // Enter Config_mode if prog_btn is pressed during startup
   if (!digitalRead(BTN_PROG)) {
