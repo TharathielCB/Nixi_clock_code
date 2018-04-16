@@ -33,14 +33,14 @@
     private:
       WiFiUDP* ntp_udp;
       unsigned long last_ntp_sync;
-      uint16_t ntp_sync_intervall;
+      uint16_t ntp_sync_intervall;    // timedifference in s when a new sync should be sheduled
+      uint16_t ntp_retry_distance;    // time to wait if ntp request wasn't sucessfull 
       bool do_ntp_updates = true;
       bool hasRTC = false;
       byte _sec, _min, _hour, _dayOfWeek, _dayOfMonth, _month, _year;
       // uRTCLib hw_rtc;
       void read_time();
       bool need_update();
-
 
     public:
       nixieTimer();

@@ -89,6 +89,7 @@ unsigned long sendNTPpacket(const char* address)
 
 nixieTimer::nixieTimer(){
     ntp_sync_intervall = 3600; // default 1 hour sync intervall
+    ntp_retry_distance = 0x01; // retry dimediff starts with 1s
     last_ntp_sync = 0;
 }
 
@@ -152,7 +153,7 @@ bool nixieTimer::need_update() {
   tm.Second = _sec;
 
   uint32_t t = makeTime(tm);
-  if (last_ntp_sync + ntp_sync_intervall < t && do_ntp_updates) return true;
+  if (last_ntp_sync + ntp_sync_intervall + ntp_retry_distance < t && do_ntp_updates) return true;
 
   return false;
 }
@@ -171,7 +172,7 @@ void nixieTimer::fetch_ntptime() {
     Serial.println(" got answer");
     // We've received a packet, read the data from it
     udp.read(ntp_buffer, NTP_PACKET_SIZE); // read the packet into the buffer
-
+    ntp_retry_distance = 0x01; // reset retry time if suceeded
     // the timestamp starts at byte 40 of the received packet and is four bytes,
     // or two words, long. First, extract the two words:
 
@@ -198,6 +199,10 @@ void nixieTimer::fetch_ntptime() {
     }
   } else {
     Serial.println("No Answer from ntp_server");
+    if (ntp_retry_distance < 0b1000000000) ntp_retry_distance = ntp_retry_distance << 1;
+    Serial.print("Retry in ");
+    Serial.print(ntp_retry_distance);
+    Serial.println("s");
   }
 }}
 
