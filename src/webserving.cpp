@@ -30,8 +30,9 @@ String config_body() {
     body += "<div class=\"siimple-grid\">";
     body += "<div class=\"siimple-grid-row\">";
     body += "<div class=\"siimple-grid-col\"><label class=\"siimple-label\">SSID:</label></div>";
-    body += "<div class=\"siimple-grid-col\"><input type=\"text\" name=\"ssid\" class=\"siimple-input\" placeholder=\"";
-    // body += 
+    body += "<div class=\"siimple-grid-col\"><input type=\"text\" name=\"ssid\" class=\"siimple-input\" value=\"";
+    Serial.println("insert essid");
+    body += config.essid.c_str();
     body += "\"></div>";
     body += "</div>";
     body += "<div class=\"siimple-grid-row\">";
@@ -42,11 +43,17 @@ String config_body() {
     body += "<p class=\"siimple-p\">";
     body += "<div class=\"siimple-grid-row\">";
     body += "<div class=\"siimple-grid-col siimple-grid-col--2\"><label class=\"siimple-label\">NTP-Server:</label></div>";
-    body += "<div class=\"siimple-grid-col\"><input type=\"text\" name=\"ntp\" class=\"siimple-input\" placeholder=\"TIMESERVER\"></div>";
+    body += "<div class=\"siimple-grid-col\"><input type=\"text\" name=\"ntp\" class=\"siimple-input\" placeholder=\"TIMESERVER\" value=\"";
+    Serial.println("insert ntp_server");
+    body += config.ntp_server.c_str();
+    body += "\"></div>";
     body += "</div>";
     body += "<div class=\"siimple-grid-row\">";
     body += "<div class=\"siimple-grid-col\"><label class=\"siimple-label\">MQTT-Broker:</label></div>";
-    body += "<div class=\"siimple-grid-col\"><input type=\"text\" name=\"mqtt_broker\"  class=\"siimple-input\" placeholder=\"MQTT-Broker\"></div>";
+    body += "<div class=\"siimple-grid-col\"><input type=\"text\" name=\"mqtt_broker\"  class=\"siimple-input\" placeholder=\"MQTT-Broker\" value=\"";
+    Serial.println("insert mqtt_broker");
+    body += config.mqtt_server.c_str();
+    body += "\"></div>";
     body += "</div>";
     body += "</div>";
     body += "<div class=\"siimple-grid-row\">";
@@ -73,6 +80,7 @@ String config_body() {
 
 
 String config_form() {
+	Serial.println("Serving configuration-form");
     String s = "<html>";
     s += html_header();
     s += config_body();

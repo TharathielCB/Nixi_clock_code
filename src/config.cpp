@@ -18,17 +18,22 @@ void save_config(String value, int start_address, int length) {
   EEPROM.commit();
 }
 
-
-
 void configuration::load() {
 // read eeprom for ssid and pass
   essid = read_config(SSID_MEM,32);
   Serial.print("SSID: ");
   Serial.println(essid);
-  Serial.println("Reading Wifi pass");
-  String epass = read_config(PASSWORD_MEM,64);
+  epass = read_config(PASSWORD_MEM,64);
+  Serial.println("Reading Wifi pass: ******* ");
+  // Serial.println(epass);
+  Serial.print("NTP-Server: ");
   ntp_server = read_config(NTP_MEM, 64);
+  Serial.println(ntp_server);
+  Serial.print("MQTT-Broker: ");
   mqtt_server = read_config(MQTT_BROKER_MEM, 64);
+  Serial.println(mqtt_server);
+  mqtt_connector.publish("nixieClock/ntp_server", ntp_server.c_str());
+
 }
 
 void configuration::store() {
@@ -41,4 +46,6 @@ void configuration::store() {
   save_config(mqtt_password, MQTT_PASSWORD_MEM, 32);
   save_config(mqtt_topic, MQTT_TOPIC_MEM, 32);
   EEPROM.commit();
+
+  mqtt_connector.publish("nixieClock/ntp_server", ntp_server.c_str());
 }

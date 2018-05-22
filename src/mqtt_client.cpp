@@ -1,6 +1,8 @@
 #include "mqtt_client.h"
 
 void mqtt_setup(const char* server, Client &client) {
+  Serial.print("Setting up mqtt");
+  Serial.println(server);
   mqtt_connector.setClient(client);
   mqtt_connector.setServer(server, 1883);
   mqtt_connector.setCallback(mqtt_callback);
@@ -25,6 +27,7 @@ void mqtt_reconnect() {
     mqtt_connector.subscribe("nixieClock/leds");
     mqtt_connector.subscribe("nixieClock/mode");
     mqtt_connector.subscribe("nixieClock/ntp");
+   //  mqtt_connector.subscribe("nixieClock/ntp/broker");
     mqtt_connector.subscribe("nixieClock/led/");
   } else {
    Serial.print("failed, rc=");
@@ -81,6 +84,17 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
           clock.fetch_ntptime();
         }
    }
+
+   if (!strcmp(topic, "nixieClock/ntp/broker")) {
+        //
+        char received_char = (char)payload[0];
+        if (received_char == '0') {
+          clock.fetch_ntptime();
+        }
+   }
+
+
+
     if (!strcmp(topic,"nixieClock/leds")) {
         // receive rgb_values for all leds
         if (length==6) {

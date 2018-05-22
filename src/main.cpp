@@ -83,7 +83,7 @@ MDNSResponder mdns;
 ESP8266WebServer server(80);
 WiFiClient espClient;
 nixie_display display(&mcp);
-
+configuration config;       //create configuration object
 String ntp_server;
 String mqtt_server;
 String password;
@@ -92,6 +92,7 @@ uint8 led_mode = 0;
 uint8 input = 0;
 uint8 oldsec = 0;
 nixieTimer clock;
+bool last_wifistate = false;
 
 uint32 mqtt_connection_time = 0;
 
@@ -423,16 +424,14 @@ void config_mode() {
   });
 
   server.on("/save", HTTP_POST, [](){
-    save_config("ssid", 0, 32);
-    save_config("password", 32, 64);
-    save_config("ntp", 96, 64);
-    save_config("mqtt_broker", 0xa0, 64);
-    save_config("mqtt_user", 0xe0, 32);
-    save_config("mqtt_password", 0x100, 32);
-    save_config("mqtt_topic", 0x120, 32);
-
-    EEPROM.commit();
-
+    if (server.hasArg("ssid")) config.essid = server.arg("ssid");
+    if (server.hasArg("password")) config.epass = server.arg("password");
+    if (server.hasArg("ntp")) config.ntp_server = server.arg("ntp");
+    if (server.hasArg("mqtt_broker")) config.mqtt_server = server.arg("mqtt_broker");
+    if (server.hasArg("mqtt_user")) config.mqtt_user = server.arg("mqtt_user");
+    if (server.hasArg("mqtt_password")) config.mqtt_password = server.arg("mqtt_password");
+    if (server.hasArg("mqtt_topic")) config.mqtt_topic = server.arg("mqtt_topic");
+    config.store();
     server.send(200,"text/html", config_form());
   });
 
@@ -598,25 +597,13 @@ void setup(){
   menu_edit_year.btn_center_long_action = &save_year;
   menu_edit_year.btn_right_long_action = &do_nothing;
 
+  config.load(); // load configuration from eeprom
 
-  // read eeprom for ssid and pass
-  String essid = read_config(0,32);
-  Serial.print("SSID: ");
-  Serial.println(essid);
-
-  Serial.println("Reading EEPROM pass");
-  String epass = read_config(32,64);
-
-  ntp_server = read_config(0x60,64);
-  mqtt_server = read_config(0xa0,64);
-  Serial.print("MQTT-Broker: ");
-  Serial.println(mqtt_server);
-  Serial.println(mqtt_server.length());
-  mqtt_setup(mqtt_server.c_str(), espClient);
+  mqtt_setup(config.mqtt_server.c_str(), espClient);
   strip.Color(255, 0, 0);
   strip.show(); // Initialize all pixels to 'off'
   WiFi.mode(WIFI_STA);
-  WiFi.begin(essid.c_str(), epass.c_str());
+  WiFi.begin(config.essid.c_str(), config.epass.c_str());
 
   e1 = WiFi.onStationModeGotIP(onSTAGotIP);// As soon WiFi is connected, start NTP Client
 
@@ -632,9 +619,9 @@ void setup(){
   red_value = 0x0c;
   green_value = 0x05;
   blue_value = 0x00;
-  for (int i=0; i< LED_COUNT; i++) {
+  for (int i=0; i< LED_COUNT; i++)
     led_colors[i]=strip.Color(red_value, green_value, blue_value);
-  }
+
   strip.show();
 }
 
@@ -651,13 +638,21 @@ void loop() {
 
 
   if (WiFi.isConnected()) {
-    if (!mqtt_connector.connected()) {
+	  for (int i = 0; i< LED_COUNT; i++)
+		led_colors[i] = strip.Color(0,0x20,0);
+	  strip.show();
+	  if (!mqtt_connector.connected()) {
       if (now() - mqtt_connection_time > 5) {
         mqtt_reconnect();
         mqtt_connection_time = now();
       }
     }
     mqtt_connector.loop();
+  } else {
+	  for (int i = 0; i< LED_COUNT; i++)
+		led_colors[i] = strip.Color(0x20,0,0);
+	  strip.show();
+
   }
   // Read Input-BTNS
 
