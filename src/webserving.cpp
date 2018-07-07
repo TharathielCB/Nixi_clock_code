@@ -37,7 +37,7 @@ String config_body() {
     body += "</div>";
     body += "<div class=\"siimple-grid-row\">";
     body += "<div class=\"siimple-grid-col\"><label class=\"siimple-label\">Wifi Password:</label></div>";
-    body += "<div class=\"siimple-grid-col\"><input type=\"password\" name=\"password\" class=\"siimple-input\" placeholder=\"SUPERSECRET\"></div>";
+    body += "<div class=\"siimple-grid-col\"><input type=\"password\" name=\"password\" class=\"siimple-input\"></div>";
     body += "</div>";
     body += "</p>";
     body += "<p class=\"siimple-p\">";

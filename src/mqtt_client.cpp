@@ -27,7 +27,7 @@ void mqtt_reconnect() {
     mqtt_connector.subscribe("nixieClock/leds");
     mqtt_connector.subscribe("nixieClock/mode");
     mqtt_connector.subscribe("nixieClock/ntp");
-   //  mqtt_connector.subscribe("nixieClock/ntp/broker");
+    mqtt_connector.subscribe("nixieClock/ntp/broker");
     mqtt_connector.subscribe("nixieClock/led/");
   } else {
    Serial.print("failed, rc=");

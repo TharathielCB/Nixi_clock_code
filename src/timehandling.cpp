@@ -165,7 +165,8 @@ void nixieTimer::fetch_ntptime() {
   // set_time(time_client->getEpochTime());
 
   sendNTPpacket(ntp_server.c_str());
-  Serial.print(ntp_server);
+  Serial.print("Server: ");
+  Serial.println(ntp_server);
   // wait to see if a reply is available
   delay(1000);
   if (udp.parsePacket()) {
@@ -276,4 +277,8 @@ void nixieTimer::set_second(uint8_t s) {
   read_time();
   _sec = s;
   store_time();
+}
+
+void nixieTimer::set_ntp_server(String server) {
+  ntp_server = server;
 }

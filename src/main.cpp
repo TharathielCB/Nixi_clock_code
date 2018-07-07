@@ -1,5 +1,6 @@
 #include <TimeLib.h>
 #include <Time.h>
+#include <string>
 // change next line to use with another board/shield
 #include <ESP8266mDNS.h>
 #include <ESP8266WiFi.h>
@@ -98,8 +99,39 @@ uint32 mqtt_connection_time = 0;
 
 int edit_number_oldvalue, edit_number; // Internal number which is used while in editing-menu
 
+char incomming_byte;
+String serial_command = "";
+
 node menu_time, menu_year, menu_date, menu_edit_hour, menu_edit_minute, menu_edit_day, menu_edit_month, menu_edit_year;
 node* menupoint = &menu_time;
+
+
+void run_serial_command(String command){ 
+	if (command == "wifi") {
+		Serial.println("WiFi Status");
+		Serial.print("Essid: ");
+		Serial.println(config.essid);
+		Serial.print("Password: ");
+		Serial.println(config.epass);
+		if (WiFi.isConnected()) { 
+			Serial.println("connected");
+		} else {
+			
+			Serial.println("not connected");
+		}
+	}
+
+	if (command == "mqtt") {
+		Serial.println("MQTT Status");
+		Serial.print("Broker: ");
+		Serial.println(config.mqtt_server);
+		if (mqtt_connector.connected()) {
+			Serial.println("Connected");
+		} else {
+			Serial.println("Not Connected");
+		}
+	}
+}
 
 void next_menupoint() {
   menupoint = menupoint->next;
@@ -128,6 +160,7 @@ void show_year() {
     Serial.println(number);
   }
 }
+
 
 void show_date() {
   oldnumber = number;
@@ -425,7 +458,11 @@ void config_mode() {
 
   server.on("/save", HTTP_POST, [](){
     if (server.hasArg("ssid")) config.essid = server.arg("ssid");
-    if (server.hasArg("password")) config.epass = server.arg("password");
+    if (server.hasArg("password")) {
+		// if( !strcmp(server.arg("password").c_str(),""))
+			config.epass = server.arg("password");
+			Serial.println(config.epass);
+	}
     if (server.hasArg("ntp")) config.ntp_server = server.arg("ntp");
     if (server.hasArg("mqtt_broker")) config.mqtt_server = server.arg("mqtt_broker");
     if (server.hasArg("mqtt_user")) config.mqtt_user = server.arg("mqtt_user");
@@ -493,6 +530,7 @@ void setup(){
 
   Wire.begin();
   mcp.begin();
+  
   clock.begin();
 
   // Read configured Wifi-Settings
@@ -533,19 +571,6 @@ void setup(){
   menu_time.btn_center_long_action = &config_mode;
   menu_time.btn_right_long_action = &do_nothing;
   menu_year.command = &show_year;
-  menu_year.next = &menu_time;
-  menu_year.btn_left_action = &next_menupoint;
-  menu_year.prev = &menu_date;
-  menu_year.btn_right_action = &prev_menupoint;
-  menu_year.btn_center_action = &do_nothing;
-  menu_year.btn_left_long_action = &edit_year;
-  menu_year.btn_center_long_action = &do_nothing;
-  menu_year.btn_right_long_action = &do_nothing;
-  menu_date.command = &show_date;
-  menu_date.next = &menu_year;
-  menu_date.btn_left_action = &next_menupoint;
-  menu_date.prev = &menu_time;
-  menu_date.btn_right_action = &prev_menupoint;
   menu_date.btn_center_action = &do_nothing;
   menu_date.btn_left_long_action = &edit_date;
   menu_date.btn_center_long_action = &do_nothing;
@@ -600,6 +625,7 @@ void setup(){
   config.load(); // load configuration from eeprom
 
   mqtt_setup(config.mqtt_server.c_str(), espClient);
+  clock.set_ntp_server(config.ntp_server);
   strip.Color(255, 0, 0);
   strip.show(); // Initialize all pixels to 'off'
   WiFi.mode(WIFI_STA);
@@ -627,6 +653,22 @@ void setup(){
 
 void loop() {
 
+  // 
+  if (Serial.available() > 0) {
+	  incomming_byte = Serial.read();
+	  if (incomming_byte == '\n' or incomming_byte == '\r') {
+		  Serial.println(" executing command ");
+		  run_serial_command(serial_command);
+		  // clear command after command was executed
+		  serial_command = "";
+		  Serial.print("$ ");
+		  
+	  } else {
+		serial_command += incomming_byte;
+		Serial.print(incomming_byte);
+	  }
+  }
+
   // Redraw LEDs once in a sec
   if (oldsec != second()) {
     for (int i=0; i<LED_COUNT; i++) {
@@ -638,9 +680,7 @@ void loop() {
 
 
   if (WiFi.isConnected()) {
-	  for (int i = 0; i< LED_COUNT; i++)
-		led_colors[i] = strip.Color(0,0x20,0);
-	  strip.show();
+
 	  if (!mqtt_connector.connected()) {
       if (now() - mqtt_connection_time > 5) {
         mqtt_reconnect();
@@ -648,12 +688,7 @@ void loop() {
       }
     }
     mqtt_connector.loop();
-  } else {
-	  for (int i = 0; i< LED_COUNT; i++)
-		led_colors[i] = strip.Color(0x20,0,0);
-	  strip.show();
-
-  }
+  } 
   // Read Input-BTNS
 
   old_btnstate = btnstate;

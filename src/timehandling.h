@@ -20,7 +20,6 @@
     #define NTP_PACKET_SIZE 48
     #define byte uint8_t
     #define dow(t) (int ((t / 86400) + 4) % 7)
-    extern String ntp_server;
 
     extern WiFiUDP udp; // A UDP instance to let us send and receive packets over UDP
 
@@ -32,6 +31,7 @@
     class nixieTimer {
     private:
       WiFiUDP* ntp_udp;
+      String ntp_server;
       unsigned long last_ntp_sync;
       uint16_t ntp_sync_intervall;    // timedifference in s when a new sync should be sheduled
       uint16_t ntp_retry_distance;    // time to wait if ntp request wasn't sucessfull 
@@ -59,6 +59,7 @@
       void set_day(uint8_t day);
       void set_year(uint16_t year);
       void set_time(time_t t);
+	  void set_ntp_server(String ntp_server);
       void fetch_ntptime();
     };
 #endif
