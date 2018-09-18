@@ -6,6 +6,10 @@
 #include "display.h"
 
 
+void nixie_display::set_publish_callback(PublishFunctionPtr callback) {
+	publisher = callback;
+}
+
 void nixie_display::setup_pins() {
     mcp->begin();
     mcp->pinMode(hv_pin, OUTPUT);
@@ -20,11 +24,14 @@ void nixie_display::clr() {
 
 void nixie_display::on() {
     mcp->digitalWrite(hv_pin, LOW);
+    publisher("/status/power","1");	
     Serial.println("HV on!!!");
 }
 
 void nixie_display::off(){
     mcp->digitalWrite(hv_pin, HIGH);
+    publisher("/status/power","0");	
+
     Serial.println("HV off!");
 }
 
@@ -49,8 +56,9 @@ void nixie_display::shift_bit(uint8 value, uint16 delay_value) {
     delayMicroseconds(delay_value);
 }
 
-nixie_display::nixie_display(Adafruit_MCP23008 *portexpander) {
+nixie_display::nixie_display(Adafruit_MCP23008 *portexpander, configuration *config) {
     mcp = portexpander;
+	conf = config;
     setup_pins();
 }
 

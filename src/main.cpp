@@ -83,8 +83,8 @@ PubSubClient mqtt_connector;
 MDNSResponder mdns;
 ESP8266WebServer server(80);
 WiFiClient espClient;
-nixie_display display(&mcp);
 configuration config;       //create configuration object
+nixie_display display(&mcp, &config);
 String ntp_server;
 String mqtt_server;
 String password;
@@ -528,6 +528,7 @@ void config_mode() {
 
 void setup(){
 
+  display.set_publish_callback(&mqtt_publish);
   Wire.begin();
   mcp.begin();
   

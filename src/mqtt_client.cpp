@@ -38,6 +38,11 @@ void mqtt_reconnect() {
   }
 }
 
+void mqtt_publish(char* topic, char* payload) {
+	mqtt_connector.publish(topic, payload);
+}
+
+
 void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
@@ -57,7 +62,8 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
    if (!strcmp(topic,"nixieClock/display")) {
         // Print given numbers on display
         Serial.println("Displaying message");
-        display.print(message.toInt());
+        
+		display.print(message.toInt());
    }
 
    if (!strcmp(topic, "nixieClock/mode")) {
