@@ -19,6 +19,7 @@ private:
     Adafruit_MCP23008 *mcp;
 	void setup_pins();
     PublishFunctionPtr publisher;
+	void mpublish(char* topic, char* message);
 
 public:
     // nixie_display(int hv_pin, int data_pin, int clk_pin);

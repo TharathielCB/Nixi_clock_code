@@ -5,6 +5,7 @@
 #include <Adafruit_NeoPixel.h>
 #include "btnmenu.h"
 #include "timehandling.h"
+#include "display.h"
 #include "config.h"
 
 extern PubSubClient mqtt_connector;

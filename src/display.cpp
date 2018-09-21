@@ -24,13 +24,13 @@ void nixie_display::clr() {
 
 void nixie_display::on() {
     mcp->digitalWrite(hv_pin, LOW);
-    publisher("/status/power","1");	
+    mpublish("nixieClock/status/power","1");	
     Serial.println("HV on!!!");
 }
 
 void nixie_display::off(){
     mcp->digitalWrite(hv_pin, HIGH);
-    publisher("/status/power","0");	
+    mpublish("nixieClock/status/power","0");	
 
     Serial.println("HV off!");
 }
@@ -41,6 +41,10 @@ void nixie_display::toggle() {
     } else {
       off();
     }
+}
+
+void nixie_display::mpublish(char* topic, char* message) {
+	publisher(topic, message);
 }
 
 void nixie_display::shift_bit(uint8 value, uint16 delay_value) {
@@ -58,7 +62,7 @@ void nixie_display::shift_bit(uint8 value, uint16 delay_value) {
 
 nixie_display::nixie_display(Adafruit_MCP23008 *portexpander, configuration *config) {
     mcp = portexpander;
-	conf = config;
+	// conf = config;
     setup_pins();
 }
 
