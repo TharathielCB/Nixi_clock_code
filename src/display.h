@@ -4,13 +4,17 @@
 #include "Arduino.h"
 #include "Adafruit_MCP23008.h" //port expander
 #include "config.h"
+#include <string>
 // #include "mqtt_client.h"
 
 
-typedef void(*PublishFunctionPtr)(char*, char*);
+typedef void(*PublishFunctionPtr)(const char*, const char*, bool);
+
+void serial_publisher(const char* topic, const char* message, bool persistence);
 
 class nixie_display {
 private:
+	configuration *conf; 
     uint8_t hv_pin = 4;
     uint8_t data_pin = 1;
     uint8_t clk_pin = 2;
@@ -19,7 +23,7 @@ private:
     Adafruit_MCP23008 *mcp;
 	void setup_pins();
     PublishFunctionPtr publisher;
-	void mpublish(char* topic, char* message);
+	void mpublish(String topic, String message);
 
 public:
     // nixie_display(int hv_pin, int data_pin, int clk_pin);

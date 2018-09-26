@@ -5,10 +5,17 @@
 
 #include "display.h"
 
+void serial_publisher(const char* topic, const char *message, bool persistence){
+	Serial.print(topic);
+	Serial.println(message);
+}
+
 
 void nixie_display::set_publish_callback(PublishFunctionPtr callback) {
 	publisher = callback;
 }
+
+
 
 void nixie_display::setup_pins() {
     mcp->begin();
@@ -24,13 +31,13 @@ void nixie_display::clr() {
 
 void nixie_display::on() {
     mcp->digitalWrite(hv_pin, LOW);
-    mpublish("nixieClock/status/power","1");	
+    mpublish("/status/power", "1");	
     Serial.println("HV on!!!");
 }
 
 void nixie_display::off(){
     mcp->digitalWrite(hv_pin, HIGH);
-    mpublish("nixieClock/status/power","0");	
+    mpublish("/status/power", "0");	
 
     Serial.println("HV off!");
 }
@@ -43,9 +50,10 @@ void nixie_display::toggle() {
     }
 }
 
-void nixie_display::mpublish(char* topic, char* message) {
-	publisher(topic, message);
-}
+void nixie_display::mpublish(String topic, String message) {
+		// send all messages from display as retained message
+		publisher((conf->mqtt_topic + topic).c_str(), message.c_str(), true);
+	}
 
 void nixie_display::shift_bit(uint8 value, uint16 delay_value) {
     mcp->digitalWrite(clk_pin, HIGH);
@@ -62,7 +70,8 @@ void nixie_display::shift_bit(uint8 value, uint16 delay_value) {
 
 nixie_display::nixie_display(Adafruit_MCP23008 *portexpander, configuration *config) {
     mcp = portexpander;
-	// conf = config;
+	conf = config;
+	set_publish_callback(&serial_publisher);
     setup_pins();
 }
 
@@ -94,6 +103,7 @@ void nixie_display::print(uint16 value, uint16 delay_us) {
     uint8 i;
     uint8 digit[4];
     uint8 sr_bits[64] = { 0 };
+	Serial.println("preparing bits");
     // Pin-Mapping of Shift-Register ->Nixie-Tubes
   	uint8 bitlist_tube0[10] = { 8, 0, 1, 2, 3, 4, 5, 6, 7, 9};
   	uint8 bitlist_tube1[10] = {19,12,11,10,13,14,15,16,17,18};
@@ -105,6 +115,7 @@ void nixie_display::print(uint16 value, uint16 delay_us) {
         digit[3-i] = value % 10;
         value = value / 10;
     }
+	Serial.println("create sr_bits");
 
     sr_bits[bitlist_tube0[digit[0]]] = HIGH;
     sr_bits[bitlist_tube1[digit[1]]] = HIGH;
@@ -115,6 +126,13 @@ void nixie_display::print(uint16 value, uint16 delay_us) {
     sr_bits[bitlist_tube2[digit[2]]-10] = HIGH;
     sr_bits[bitlist_tube1[digit[1]]+10] = HIGH;
 
+	Serial.println("shifting bits");
     shift_bit(0,1);
     for (i = 0; i < 64; i++) shift_bit(sr_bits[63-i], delay_us);
+	Serial.println("Publishing");
+    char *value_str;
+	Serial.println("converting value into string");
+	// itoa(value, value_str, 10);
+	Serial.println("sending to mqtt");
+	mpublish("/display/", "1");
 }

@@ -6,10 +6,15 @@ void mqtt_setup(const char* server, Client &client) {
   mqtt_connector.setClient(client);
   mqtt_connector.setServer(server, 1883);
   mqtt_connector.setCallback(mqtt_callback);
-  mqtt_connector.subscribe("nixieClock");
-  mqtt_connector.subscribe("nixieClock/display");
-  mqtt_connector.subscribe("nixieClock/power");
-  mqtt_connector.subscribe("nixieClock/leds");
+  mqtt_connector.subscribe((config.mqtt_topic + "/display").c_str());
+  mqtt_connector.subscribe((config.mqtt_topic + "/power").c_str());
+  mqtt_connector.subscribe((config.mqtt_topic + "/leds").c_str());
+  mqtt_connector.subscribe((config.mqtt_topic + "/mode").c_str());
+  mqtt_connector.subscribe((config.mqtt_topic + "/ntp").c_str());
+  mqtt_connector.subscribe((config.mqtt_topic + "/ntp/broker").c_str());
+  mqtt_connector.subscribe((config.mqtt_topic + "/led/").c_str());
+
+  publish_config();
 }
 
 
@@ -22,13 +27,13 @@ void mqtt_reconnect() {
     Serial.println("connected");
     // ... and subscribe to topic
     mqtt_connector.subscribe("nixieClock");
-    mqtt_connector.subscribe("nixieClock/display");
-    mqtt_connector.subscribe("nixieClock/power");
-    mqtt_connector.subscribe("nixieClock/leds");
-    mqtt_connector.subscribe("nixieClock/mode");
-    mqtt_connector.subscribe("nixieClock/ntp");
-    mqtt_connector.subscribe("nixieClock/ntp/broker");
-    mqtt_connector.subscribe("nixieClock/led/");
+    mqtt_connector.subscribe((config.mqtt_topic + "/display").c_str());
+    mqtt_connector.subscribe((config.mqtt_topic + "/power").c_str());
+    mqtt_connector.subscribe((config.mqtt_topic + "/leds").c_str());
+    mqtt_connector.subscribe((config.mqtt_topic + "/mode").c_str());
+    mqtt_connector.subscribe((config.mqtt_topic + "/ntp").c_str());
+    mqtt_connector.subscribe((config.mqtt_topic + "/ntp/broker").c_str());
+    mqtt_connector.subscribe((config.mqtt_topic + "/led/").c_str());
   } else {
    Serial.print("failed, rc=");
    Serial.print(mqtt_connector.state());
@@ -38,8 +43,11 @@ void mqtt_reconnect() {
   }
 }
 
-void mqtt_publish(char* topic, char* payload) {
-	mqtt_connector.publish(topic, payload);
+
+
+void mqtt_publish(const char* topic, const char* payload, bool retained) {
+	if (mqtt_connector.connected()) 
+		mqtt_connector.publish((config.mqtt_topic + topic).c_str(), payload, retained);
 }
 
 
@@ -59,21 +67,20 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
    }
    Serial.println();
 
-   if (!strcmp(topic,"nixieClock/display")) {
+    if (!strcmp(topic,(config.mqtt_topic + "/display").c_str())) {
         // Print given numbers on display
         Serial.println("Displaying message");
-        
 		display.print(message.toInt());
-   }
+    }
 
-   if (!strcmp(topic, "nixieClock/mode")) {
+    if (!strcmp(topic, (config.mqtt_topic + "/mode").c_str())) {
         // Switch mode between "time", "date", "year"
         if (strcmp(message.c_str(),"time")==0) menupoint = &menu_time;
         if (strcmp(message.c_str(),"date")==0) menupoint = &menu_date;
         if (strcmp(message.c_str(),"year")==0) menupoint = &menu_year;
-   }
+    }
 
-   if (!strcmp(topic, "nixieClock/power")) {
+    if (!strcmp(topic, (config.mqtt_topic +  "/power").c_str())) {
         // send 0 to poweroff tubes, 1 to switch them on
         char received_char = (char)payload[0];
         if (received_char == '0') {
@@ -83,7 +90,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         }
     }
 
-   if (!strcmp(topic, "nixieClock/ntp")) {
+   if (!strcmp(topic, (config.mqtt_topic + "/ntp").c_str())) {
         //
         char received_char = (char)payload[0];
         if (received_char == '0') {
@@ -91,7 +98,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         }
    }
 
-   if (!strcmp(topic, "nixieClock/ntp/broker")) {
+   if (!strcmp(topic, (config.mqtt_topic + "/ntp/broker").c_str())) {
         //
         char received_char = (char)payload[0];
         if (received_char == '0') {
@@ -101,7 +108,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
 
 
 
-    if (!strcmp(topic,"nixieClock/leds")) {
+    if (!strcmp(topic, (config.mqtt_topic + "/leds").c_str())) {
         // receive rgb_values for all leds
         if (length==6) {
 
@@ -155,7 +162,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
 
 
 
-    if (!strcmp(topic,"nixieClock/led/0")) {
+    if (!strcmp(topic, (config.mqtt_topic + "/led/0").c_str())) {
         // receive rgb_values for first led (hex) e.g. ffffff
         if (length==6) {
 
@@ -173,7 +180,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
           }
     }
 
-    if (!strcmp(topic,"nixieClock/led/1")) {
+    if (!strcmp(topic, (config.mqtt_topic + "/led/1").c_str())) {
         // receive rgb_values for first led (hex) e.g. ffffff
         if (length==6) {
 
@@ -192,7 +199,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         }
     }
 
-    if (!strcmp(topic,"nixieClock/led/2")) {
+    if (!strcmp(topic,(config.mqtt_topic + "/led/2").c_str())) {
         // receive rgb_values for first led (hex) e.g. ffffff
         if (length==6) {
 
@@ -213,7 +220,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         }
     }
 
-    if (!strcmp(topic,"nixieClock/led/3")) {
+    if (!strcmp(topic, (config.mqtt_topic + "/led/3").c_str())) {
         // receive rgb_values for first led (hex) e.g. ffffff
         if (length==6) {
 
@@ -233,3 +240,11 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         }
     }
  }
+
+void publish_config() {
+	if (mqtt_connector.connected()) {
+		// Send Config as retained messages
+		mqtt_connector.publish((config.mqtt_topic + "/config/essid").c_str(), config.essid.c_str(), true);
+		mqtt_connector.publish((config.mqtt_topic + "/config/ntp_server").c_str(), config.ntp_server.c_str(), true);
+	}
+}

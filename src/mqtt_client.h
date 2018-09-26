@@ -21,6 +21,8 @@ void mqtt_setup(const char* server, Client& client);
 void mqtt_connect();
 void mqtt_callback(char* topic, byte* payload, unsigned int length);
 void mqtt_reconnect();
-void mqtt_publish(char* topic, char* payload);
+void mqtt_publish(const char* topic,const char* payload, bool retained);
+
+void publish_config();
 
 #endif

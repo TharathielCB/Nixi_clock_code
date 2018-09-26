@@ -33,6 +33,7 @@
       WiFiUDP* ntp_udp;
       String ntp_server;
       unsigned long last_ntp_sync;
+	  unsigned long next_ntp_fetch;
       uint16_t ntp_sync_intervall;    // timedifference in s when a new sync should be sheduled
       uint16_t ntp_retry_distance;    // time to wait if ntp request wasn't sucessfull 
       bool do_ntp_updates = true;

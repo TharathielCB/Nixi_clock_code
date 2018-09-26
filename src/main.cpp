@@ -444,7 +444,7 @@ void config_mode() {
   }
 
   Serial.println("mDNS responder started");
-
+  server.begin();
   // main Configform
   server.on("/", [](){
     Serial.println("Serving Config-Form");
@@ -528,8 +528,11 @@ void config_mode() {
 
 void setup(){
 
+  Serial.println("Setup publish callback ");
   display.set_publish_callback(&mqtt_publish);
+  Serial.println("Sarting WIre");
   Wire.begin();
+  Serial.println("Statring mcp");
   mcp.begin();
   
   clock.begin();
@@ -549,11 +552,12 @@ void setup(){
   mcp.pinMode(CLK_PIN, OUTPUT);
   mcp.pinMode(DATA_PIN, OUTPUT);
   mcp.pinMode(STROBE_PIN, OUTPUT);
+  Serial.println("Switching Display off");
   display.off();
-  display.print(0);
 
   pinMode(BTN_PROG,INPUT_PULLUP);
   // set startdate to 0:0 1/1/2018
+  Serial.println("Setting System Timer");
   setTime(0,0,0,1,1,2018);
 
   // Enter Config_mode if prog_btn is pressed during startup
@@ -623,21 +627,31 @@ void setup(){
   menu_edit_year.btn_center_long_action = &save_year;
   menu_edit_year.btn_right_long_action = &do_nothing;
 
+  Serial.print("Loading config");
   config.load(); // load configuration from eeprom
-
+  Serial.println(" OK");
+  Serial.print("Setup mqtt ");
   mqtt_setup(config.mqtt_server.c_str(), espClient);
+  Serial.println(" OK");
+  Serial.print("Setup ntpserver for clockmodule");
   clock.set_ntp_server(config.ntp_server);
+  Serial.println(" OK");
   strip.Color(255, 0, 0);
+  Serial.print("Setup Strip");
   strip.show(); // Initialize all pixels to 'off'
+  Serial.println(" OK");
+
   WiFi.mode(WIFI_STA);
   WiFi.begin(config.essid.c_str(), config.epass.c_str());
-
+  Serial.println("Wifi Setup ready");
   e1 = WiFi.onStationModeGotIP(onSTAGotIP);// As soon WiFi is connected, start NTP Client
-
-  server.begin();
+  Serial.println("Got IP");
   display.clr();
+  Serial.println("Empty display");
   display.print(0);
+  Serial.println("Started with 0000");
   display.on();
+
   led_mode = LED_ON;
   red_step = 1;
   blue_step = 1;
@@ -650,6 +664,9 @@ void setup(){
     led_colors[i]=strip.Color(red_value, green_value, blue_value);
 
   strip.show();
+  Serial.println("Trying to publish config");
+  publish_config();
+  Serial.println("OK");
 }
 
 void loop() {

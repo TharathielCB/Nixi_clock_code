@@ -91,6 +91,7 @@ nixieTimer::nixieTimer(){
     ntp_sync_intervall = 3600; // default 1 hour sync intervall
     ntp_retry_distance = 0x01; // retry dimediff starts with 1s
     last_ntp_sync = 0;
+	next_ntp_fetch = 10;
 }
 
 void nixieTimer::begin() {
@@ -153,12 +154,12 @@ bool nixieTimer::need_update() {
   tm.Second = _sec;
 
   uint32_t t = makeTime(tm);
-  if (last_ntp_sync + ntp_sync_intervall + ntp_retry_distance < t && do_ntp_updates) return true;
-
+  if (next_ntp_fetch < t) return true;
   return false;
 }
 
 void nixieTimer::fetch_ntptime() {
+  
   if (WiFi.isConnected()) {
   Serial.println("Update Time");
   // time_client->update();
@@ -197,13 +198,22 @@ void nixieTimer::fetch_ntptime() {
       Serial.println("Daylight saving time");
       set_time(epoch + 3600);
       last_ntp_sync=epoch +3600;
-    }
+	  next_ntp_fetch=epoch + 3600;
+	}
   } else {
     Serial.println("No Answer from ntp_server");
     if (ntp_retry_distance < 0b1000000000) ntp_retry_distance = ntp_retry_distance << 1;
     Serial.print("Retry in ");
     Serial.print(ntp_retry_distance);
     Serial.println("s");
+  tmElements_t tm;
+  tm.Day = _dayOfMonth;
+  tm.Hour = _hour;
+  tm.Minute = _min;
+  tm.Month = _month;
+  tm.Year = _year;
+  tm.Second = _sec;
+  next_ntp_fetch = ntp_retry_distance + makeTime(tm);
   }
 }}
 
