@@ -527,6 +527,8 @@ void config_mode() {
 }
 
 void setup(){
+  
+  Serial.begin(115200);
 
   Serial.println("Setup publish callback ");
   display.set_publish_callback(&mqtt_publish);
@@ -539,7 +541,6 @@ void setup(){
 
   // Read configured Wifi-Settings
   static WiFiEventHandler e1, e2;
-  Serial.begin(115200);
   EEPROM.begin(4096);
   strip.begin();
   mcp.pinMode(BTN_LEFT, INPUT);
@@ -576,6 +577,19 @@ void setup(){
   menu_time.btn_center_long_action = &config_mode;
   menu_time.btn_right_long_action = &do_nothing;
   menu_year.command = &show_year;
+  menu_year.next = &menu_time;
+  menu_year.btn_left_action = &next_menupoint;
+  menu_year.prev = &menu_date;
+  menu_year.btn_right_action = &prev_menupoint;
+  menu_year.btn_center_action = &do_nothing;
+  menu_year.btn_left_long_action = &edit_year;
+  menu_year.btn_center_long_action = &do_nothing;
+  menu_year.btn_right_long_action = &do_nothing;
+  menu_date.command = &show_date;
+  menu_date.next = &menu_year;
+  menu_date.btn_left_action = &next_menupoint;
+  menu_date.prev = &menu_time;
+  menu_date.btn_right_action = &prev_menupoint;
   menu_date.btn_center_action = &do_nothing;
   menu_date.btn_left_long_action = &edit_date;
   menu_date.btn_center_long_action = &do_nothing;
