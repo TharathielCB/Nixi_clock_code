@@ -125,6 +125,10 @@ void run_serial_command(String command){
 		Serial.println("MQTT Status");
 		Serial.print("Broker: ");
 		Serial.println(config.mqtt_server);
+		Serial.print("Topic: ");
+		Serial.println(config.mqtt_topic);
+		Serial.print("User: ");
+		Serial.println(config.mqtt_user);
 		if (mqtt_connector.connected()) {
 			Serial.println("Connected");
 		} else {

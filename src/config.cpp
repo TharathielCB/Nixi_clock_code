@@ -13,6 +13,8 @@ String read_config(uint16 start, uint16 length) {
  *
  **/
 void save_config(String value, int start_address, int length) {
+  Serial.print("Saving ");
+  Serial.println(value);
   for (int i = 0; i < length; ++i) EEPROM.write(start_address + i, 0);
   for (int i=0; i < value.length(); ++i) EEPROM.write(start_address + i, value[i]);
   EEPROM.commit();
@@ -32,7 +34,8 @@ void configuration::load() {
   Serial.print("MQTT-Broker: ");
   mqtt_server = read_config(MQTT_BROKER_MEM, 64);
   Serial.println(mqtt_server);
-  mqtt_connector.publish("nixieClock/ntp_server", ntp_server.c_str());
+  mqtt_topic = read_config(MQTT_TOPIC_MEM, 32);
+  Serial.println(mqtt_topic);
 
 }
 
@@ -46,6 +49,6 @@ void configuration::store() {
   save_config(mqtt_password, MQTT_PASSWORD_MEM, 32);
   save_config(mqtt_topic, MQTT_TOPIC_MEM, 32);
   EEPROM.commit();
-
+  
   mqtt_connector.publish("nixieClock/ntp_server", ntp_server.c_str());
 }

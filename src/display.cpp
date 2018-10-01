@@ -52,7 +52,7 @@ void nixie_display::toggle() {
 
 void nixie_display::mpublish(String topic, String message) {
 		// send all messages from display as retained message
-		publisher((conf->mqtt_topic + topic).c_str(), message.c_str(), true);
+		publisher((topic).c_str(), message.c_str(), true);
 	}
 
 void nixie_display::shift_bit(uint8 value, uint16 delay_value) {
@@ -100,7 +100,11 @@ void nixie_display::printh(uint16 value) {
 
 
 void nixie_display::print(uint16 value, uint16 delay_us) {
-    uint8 i;
+    char *value_str = new char[5];
+    sprintf(value_str, "%4d", value);
+    
+	
+	uint8 i;
     uint8 digit[4];
     uint8 sr_bits[64] = { 0 };
 	Serial.println("preparing bits");
@@ -130,9 +134,10 @@ void nixie_display::print(uint16 value, uint16 delay_us) {
     shift_bit(0,1);
     for (i = 0; i < 64; i++) shift_bit(sr_bits[63-i], delay_us);
 	Serial.println("Publishing");
-    char *value_str;
 	Serial.println("converting value into string");
 	// itoa(value, value_str, 10);
 	Serial.println("sending to mqtt");
-	mpublish("/display/", "1");
+	Serial.println(value_str);
+	mpublish("/status/display", value_str);
+	free(value_str);
 }

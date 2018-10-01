@@ -26,7 +26,7 @@ void mqtt_reconnect() {
   if (mqtt_connector.connect("NixieClock Client")) {
     Serial.println("connected");
     // ... and subscribe to topic
-    mqtt_connector.subscribe("nixieClock");
+    // mqtt_connector.subscribe(config.mqtt_topic.c_str());
     mqtt_connector.subscribe((config.mqtt_topic + "/display").c_str());
     mqtt_connector.subscribe((config.mqtt_topic + "/power").c_str());
     mqtt_connector.subscribe((config.mqtt_topic + "/leds").c_str());
@@ -35,10 +35,9 @@ void mqtt_reconnect() {
     mqtt_connector.subscribe((config.mqtt_topic + "/ntp/broker").c_str());
     mqtt_connector.subscribe((config.mqtt_topic + "/led/").c_str());
   } else {
-   Serial.print("failed, rc=");
-   Serial.print(mqtt_connector.state());
-   Serial.println(" try again in 5 seconds");
-
+    Serial.print("failed, rc=");
+    Serial.print(mqtt_connector.state());
+    Serial.println(" try again in 5 seconds");
    }
   }
 }
@@ -46,8 +45,19 @@ void mqtt_reconnect() {
 
 
 void mqtt_publish(const char* topic, const char* payload, bool retained) {
-	if (mqtt_connector.connected()) 
-		mqtt_connector.publish((config.mqtt_topic + topic).c_str(), payload, retained);
+	if (mqtt_connector.connected()) {
+
+		char *full_topic = (char*)calloc(strlen((config.mqtt_topic).c_str()) + strlen(topic) + 1, sizeof(char));
+		strcpy(full_topic, config.mqtt_topic.c_str());
+        strcat(full_topic, topic);	
+		Serial.print("Publishing ");
+		Serial.print(full_topic);
+		Serial.print(" : ");
+		Serial.println(payload);
+		mqtt_connector.publish(full_topic, payload, retained);
+
+		free(full_topic);
+	}
 }
 
 
@@ -63,24 +73,23 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   for (int i=0;i<length;i++) {
    char receivedChar = (char)payload[i];
    message += receivedChar;
-
-   }
+  }
    Serial.println();
 
-    if (!strcmp(topic,(config.mqtt_topic + "/display").c_str())) {
+    if (strcmp(topic,(config.mqtt_topic + "/display").c_str())) {
         // Print given numbers on display
         Serial.println("Displaying message");
 		display.print(message.toInt());
     }
 
-    if (!strcmp(topic, (config.mqtt_topic + "/mode").c_str())) {
+    if (strcmp(topic, (config.mqtt_topic + "/mode").c_str())) {
         // Switch mode between "time", "date", "year"
         if (strcmp(message.c_str(),"time")==0) menupoint = &menu_time;
         if (strcmp(message.c_str(),"date")==0) menupoint = &menu_date;
         if (strcmp(message.c_str(),"year")==0) menupoint = &menu_year;
     }
 
-    if (!strcmp(topic, (config.mqtt_topic +  "/power").c_str())) {
+    if (strcmp(topic, (config.mqtt_topic +  "/power").c_str())) {
         // send 0 to poweroff tubes, 1 to switch them on
         char received_char = (char)payload[0];
         if (received_char == '0') {
@@ -90,7 +99,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         }
     }
 
-   if (!strcmp(topic, (config.mqtt_topic + "/ntp").c_str())) {
+   if (strcmp(topic, (config.mqtt_topic + "/ntp").c_str())) {
         //
         char received_char = (char)payload[0];
         if (received_char == '0') {
@@ -98,7 +107,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         }
    }
 
-   if (!strcmp(topic, (config.mqtt_topic + "/ntp/broker").c_str())) {
+   if (strcmp(topic, (config.mqtt_topic + "/ntp/broker").c_str())) {
         //
         char received_char = (char)payload[0];
         if (received_char == '0') {
@@ -108,7 +117,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
 
 
 
-    if (!strcmp(topic, (config.mqtt_topic + "/leds").c_str())) {
+    if (strcmp(topic, (config.mqtt_topic + "/leds").c_str())) {
         // receive rgb_values for all leds
         if (length==6) {
 

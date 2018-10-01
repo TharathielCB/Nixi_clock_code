@@ -66,7 +66,7 @@ String config_body() {
     body += "</div>";
     body += "<div class=\"siimple-grid-row\">";
     body += "<div class=\"siimple-grid-col\"><label class=\"siimple-label\">MQTT-Topic:</label></div>";
-    body += "<div class=\"siimple-grid-col\"><input type=\"password\" name=\"mqtt_topic\" class=\"siimple-input\" placeholder=\"MQTT-PASSWORD\"></div>";
+    body += "<div class=\"siimple-grid-col\"><input type=\"text\" name=\"mqtt_topic\" class=\"siimple-input\" placeholder=\"MQTT-TOPIC\"></div>";
     body += "</div>";
     body += "</p>";
     body += "<input class=\"siimple-btn siimple-btn--blue\" type=\"submit\" value=\"save settings\">";
