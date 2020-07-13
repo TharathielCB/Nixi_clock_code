@@ -1,0 +1,50 @@
+{
+    "description": "Really tiny library to basic RTC and EEPROM (incorporated) functionality on Arduino. DS1307 and DS3231 RTCs are supported with AT24C32 EEPROM. Also temperature sensor is supported for DS3231.", 
+    "repository": {
+        "url": "https://github.com/Naguissa/uRTCLib", 
+        "type": "git"
+    }, 
+    "platforms": [
+        "atmelavr", 
+        "atmelsam", 
+        "espressif32", 
+        "espressif8266", 
+        "intel_arc32", 
+        "microchippic32", 
+        "nordicnrf51", 
+        "nordicnrf52", 
+        "ststm32", 
+        "teensy", 
+        "timsp430"
+    ], 
+    "export": {
+        "exclude": [
+            "extras", 
+            "docs", 
+            "tests", 
+            "test", 
+            "*.doxyfile", 
+            "*.pdf"
+        ], 
+        "include": null
+    }, 
+    "authors": [
+        {
+            "maintainer": true, 
+            "name": "Naguissa", 
+            "url": null, 
+            "email": "naguissa@foroelectro.net"
+        }
+    ], 
+    "keywords": [
+        "device", 
+        "control"
+    ], 
+    "id": 1371, 
+    "name": "uRTCLib", 
+    "frameworks": [
+        "arduino"
+    ], 
+    "version": "4.2.0", 
+    "homepage": null
+}

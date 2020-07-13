@@ -175,6 +175,15 @@ void show_date() {
   }
 }
 
+
+/** Show stopwatch timer
+ *
+ **/
+void show_timer(){
+	oldnumber = number;
+	
+}
+
 void do_nothing() {
   oldnumber = number;
 }
@@ -664,6 +673,7 @@ void setup(){
   Serial.println("Wifi Setup ready");
   e1 = WiFi.onStationModeGotIP(onSTAGotIP);// As soon WiFi is connected, start NTP Client
   Serial.println("Got IP");
+
   display.clr();
   Serial.println("Empty display");
   display.print(0);

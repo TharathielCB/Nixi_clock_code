@@ -1,14 +1,32 @@
+// AUTOMATICALLY GENERATED FILE. PLEASE DO NOT MODIFY IT MANUALLY
+
+// PIO Unified Debugger
+//
+// Documentation: https://docs.platformio.org/page/plus/debugging.html
+// Configuration: https://docs.platformio.org/page/projectconf/section_env_debug.html
+
 {
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "gdb",
+            "type": "platformio-debug",
             "request": "launch",
-            "cwd": "${workspaceRoot}",
-            "name": "PlatformIO Debugger",
-            "target": "/home/paul/Documents/PlatformIO/Projects/171004-213904-esp12e/.pioenvs/esp12e/firmware.elf",
-            "gdbpath": "/home/paul/.platformio/penv/bin/piodebuggdb",
-            "autorun": [ "source .pioinit" ]
+            "name": "PIO Debug",
+            "executable": "/home/paul/Dokumente/PlatformIO/Projects/171004-213904-esp12e/.pio/build/esp12e/firmware.elf",
+            "toolchainBinDir": "/home/paul/.platformio/packages/toolchain-xtensa/bin",
+            "preLaunchTask": {
+                "type": "PlatformIO",
+                "task": "Pre-Debug"
+            },
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "type": "platformio-debug",
+            "request": "launch",
+            "name": "PIO Debug (skip Pre-Debug)",
+            "executable": "/home/paul/Dokumente/PlatformIO/Projects/171004-213904-esp12e/.pio/build/esp12e/firmware.elf",
+            "toolchainBinDir": "/home/paul/.platformio/packages/toolchain-xtensa/bin",
+            "internalConsoleOptions": "openOnSessionStart"
         }
     ]
 }

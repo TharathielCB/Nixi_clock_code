@@ -63,4 +63,8 @@
 	  void set_ntp_server(String ntp_server);
       void fetch_ntptime();
     };
+
+	class timer{
+
+	};
 #endif

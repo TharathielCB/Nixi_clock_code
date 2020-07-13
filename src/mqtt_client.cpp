@@ -71,8 +71,12 @@ void mqtt_publish(const char* topic, const char* payload, bool retained) {
 		Serial.print("Publishing ");
 		Serial.print(full_topic);
 		Serial.print(" : ");
-		Serial.println(payload);
-		mqtt_connector.publish(full_topic, payload, retained);
+		Serial.print(payload);
+		if (mqtt_connector.publish(full_topic, payload, retained)) {
+			Serial.println(" OK");
+		} else {
+			Serial.println(" Failed");
+		}
 
 		free(full_topic);
 	}

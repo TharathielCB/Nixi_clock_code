@@ -52,7 +52,7 @@ void nixie_display::toggle() {
 
 void nixie_display::mpublish(String topic, String message) {
 		// send all messages from display as retained message
-		publisher((topic).c_str(), message.c_str(), true);
+		publisher((topic).c_str(), (message).c_str(), true);
 	}
 
 void nixie_display::shift_bit(uint8 value, uint16 delay_value) {
@@ -71,7 +71,7 @@ void nixie_display::shift_bit(uint8 value, uint16 delay_value) {
 nixie_display::nixie_display(Adafruit_MCP23008 *portexpander, configuration *config) {
     mcp = portexpander;
 	conf = config;
-	set_publish_callback(&serial_publisher);
+	set_publish_callback(&serial_publisher); // will be set in main
     setup_pins();
 }
 
