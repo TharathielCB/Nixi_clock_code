@@ -130,7 +130,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         //
         char received_char = (char)payload[0];
         if (received_char == '0') {
-          clock.fetch_ntptime();
+          nixieclock.fetch_ntptime();
         }
     }
 
@@ -139,7 +139,7 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         //
         char received_char = (char)payload[0];
         if (received_char == '0') {
-          clock.fetch_ntptime();
+          nixieclock.fetch_ntptime();
         }
     }
 

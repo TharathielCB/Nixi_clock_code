@@ -92,7 +92,7 @@ char hostString[16] = {0};
 uint8 led_mode = 0;
 uint8 input = 0;
 uint8 oldsec = 0;
-nixieTimer clock;
+nixieTimer nixieclock;
 bool last_wifistate = false;
 
 uint32 mqtt_connection_time = 0;
@@ -148,7 +148,7 @@ void prev_menupoint() {
 void show_time() {
   oldnumber = number;
 //  number = clock.hour() * 100 + clock.minute();
-  number = clock.get_hour() * 100 + clock.get_minute();
+  number = nixieclock.get_hour() * 100 + nixieclock.get_minute();
 
   if (number != oldnumber ) {
     display.print(number);
@@ -158,7 +158,7 @@ void show_time() {
 
 void show_year() {
   oldnumber = number;
-  number = clock.get_year();
+  number = nixieclock.get_year();
   if (number != oldnumber) {
     display.print(number);
     Serial.println(number);
@@ -168,7 +168,7 @@ void show_year() {
 
 void show_date() {
   oldnumber = number;
-  number = clock.get_day() * 100 + clock.get_month();
+  number = nixieclock.get_day() * 100 + nixieclock.get_month();
   if (number != oldnumber) {
     display.print(number);
     Serial.println(number);
@@ -196,7 +196,7 @@ void nixies_toggle() {
 // Start NTP only after IPnetwork is connected
 void onSTAGotIP(WiFiEventStationModeGotIP ipInfo) {
 	Serial.printf("Got IP: %s\r\n", ipInfo.ip.toString().c_str());
-  clock.fetch_ntptime();
+  nixieclock.fetch_ntptime();
   // NTP.begin(ntp_server.c_str(), 1, true);
 	// NTP.setInterval(63);
 }
@@ -375,7 +375,7 @@ void editing_year() {
 
 // start time-edit mode,
 void edit_time() {
-  edit_number = clock.get_hour() * 100 + clock.get_minute();
+  edit_number = nixieclock.get_hour() * 100 + nixieclock.get_minute();
   menupoint = &menu_edit_hour;
   display.print(edit_number);
   return;
@@ -388,8 +388,8 @@ void save_time() {
   strip.show();
   uint8_t m = edit_number % 100;
   uint8_t h = (edit_number - m) / 100;
-  clock.set_minute(m);
-  clock.set_hour(h);
+  nixieclock.set_minute(m);
+  nixieclock.set_hour(h);
   menupoint = &menu_time;
   for (int i=0; i<4; i++) strip.setPixelColor(i, strip.Color(0,0,0));
   strip.show();
@@ -398,7 +398,7 @@ void save_time() {
 
 // start date-edit mode
 void edit_date() {
-  edit_number = clock.get_day() * 100 + clock.get_month();
+  edit_number = nixieclock.get_day() * 100 + nixieclock.get_month();
   menupoint = &menu_edit_day;
   display.print(edit_number);
   return;
@@ -410,8 +410,8 @@ void save_date() {
   strip.show();
   uint8_t m = edit_number % 100;
   uint8_t d = (edit_number - m) / 100;
-  clock.set_month(m);
-  clock.set_day(d);
+  nixieclock.set_month(m);
+  nixieclock.set_day(d);
   menupoint = &menu_date;
   for (int i=0; i<4; i++) strip.setPixelColor(i, strip.Color(0,0,0));
   strip.show();
@@ -420,7 +420,7 @@ void save_date() {
 
 // start year-edit Mode
 void edit_year() {
-  edit_number = clock.get_year();
+  edit_number = nixieclock.get_year();
   menupoint = &menu_edit_year;
   display.print(edit_number);
   return;
@@ -431,7 +431,7 @@ void save_year() {
   for (int i=0; i<4; i++) strip.setPixelColor(i, strip.Color(0,0,0));
   strip.show();
   menupoint = &menu_year;
-  clock.set_year(edit_number);
+  nixieclock.set_year(edit_number);
   return;
 }
 
@@ -550,7 +550,7 @@ void setup(){
   Serial.println("Statring mcp");
   mcp.begin();
   
-  clock.begin();
+  nixieclock.begin();
 
   // Read configured Wifi-Settings
   static WiFiEventHandler e1, e2;
@@ -661,7 +661,7 @@ void setup(){
   mqtt_setup(config.mqtt_server.c_str(), espClient);
   Serial.println(" OK");
   Serial.print("Setup ntpserver for clockmodule");
-  clock.set_ntp_server(config.ntp_server);
+  nixieclock.set_ntp_server(config.ntp_server);
   Serial.println(" OK");
   strip.Color(255, 0, 0);
   Serial.print("Setup Strip");
