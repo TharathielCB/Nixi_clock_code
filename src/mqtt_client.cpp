@@ -196,8 +196,6 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
         }
     }
 
-
-
     if (!strcmp(topic, (config.mqtt_topic + "/led/0").c_str())) {
         // receive rgb_values for first led (hex) e.g. ffffff
         if (length==6) {
@@ -270,11 +268,13 @@ void mqtt_callback(char* topic, byte* payload, unsigned int length) {
             uint8 red = (uint8)strtol(red_h, NULL, 16);
             uint8 green = (uint8)strtol(green_h, NULL, 16);
             uint8 blue = (uint8)strtol(blue_h, NULL, 16);
-
+https://stackoverflow.com/questions/39612375/get-content-mosquitto-pub
             strip.setPixelColor(3, strip.Color(red,green,blue));
             strip.show();
         }
     }
+
+
  }
 
 void publish_config() {

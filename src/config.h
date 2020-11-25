@@ -15,7 +15,6 @@
 #include <EEPROM.h>
 #include "PubSubClient.h"
 
-
 extern PubSubClient mqtt_connector;
 String read_config(uint16 start, uint16 length);
 void save_config(String value, int start_address, int length);
