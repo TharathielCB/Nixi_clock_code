@@ -33,9 +33,9 @@ uint16_t blink_time = 0;
 boolean hasRTC;
 
 // define buttons
-#define BTN_LEFT 0
-#define BTN_CENTER 7
-#define BTN_RIGHT 6
+#define BTN_LEFT 2
+#define BTN_CENTER 1
+#define BTN_RIGHT 0 
 #define BTN_PROG 0
 
 // define button_states
@@ -62,10 +62,10 @@ unsigned long btn_endtime;
 #define LED_COUNT 4                   // define number of ws2812 leds
 #define LED_PIN 13                    // define Pin where WS2812 connected to
 
-#define DATA_PIN 1
-#define CLK_PIN 2
-#define STROBE_PIN 3
-#define HV_PIN 4
+#define DATA_PIN 3
+#define CLK_PIN 4
+#define STROBE_PIN 5
+#define HV_PIN 6
 
 #define BRIGHTNESS_STEP 15              // in/decrease brightness by this amount per click
 #define SPEED_STEP 5

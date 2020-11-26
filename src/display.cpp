@@ -30,23 +30,25 @@ void nixie_display::clr() {
 }
 
 void nixie_display::on() {
-    mcp->digitalWrite(hv_pin, LOW);
-    mpublish("/status/power", "1");	
+    mcp->digitalWrite(hv_pin, HIGH);
+    power = 1;
+	mpublish("/status/power", "1");	
     Serial.println("HV on!!!");
 }
 
 void nixie_display::off(){
-    mcp->digitalWrite(hv_pin, HIGH);
-    mpublish("/status/power", "0");	
+    mcp->digitalWrite(hv_pin, LOW);
+    power = 0;
+	mpublish("/status/power", "0");	
 
     Serial.println("HV off!");
 }
 
 void nixie_display::toggle() {
-    if (mcp->digitalRead(hv_pin)) {
-      on();
-    } else {
+    if (power == 1) {
       off();
+    } else {
+      on();
     }
 }
 

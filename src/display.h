@@ -15,15 +15,17 @@ void serial_publisher(const char* topic, const char* message, bool persistence);
 class nixie_display {
 private:
 	configuration *conf; 
-    uint8_t hv_pin = 4;
-    uint8_t data_pin = 1;
-    uint8_t clk_pin = 2;
-    uint8_t strobe_pin = 3;
+	uint8_t power = 0;
+    uint8_t hv_pin = 6;
+    uint8_t data_pin = 3;
+    uint8_t clk_pin = 4;
+    uint8_t strobe_pin = 5;
     uint16 shift_delay = 5; // make change of value look fancy
     Adafruit_MCP23008 *mcp;
 	void setup_pins();
     PublishFunctionPtr publisher;
 	void mpublish(String topic, String message);
+
 
 public:
     // nixie_display(int hv_pin, int data_pin, int clk_pin);
