@@ -17,3 +17,6 @@ uploadfs:
 update:
 	platformio -f -c nvim update
 
+upload_port: 
+	platformio -f -c nvim run --target upload --upload-port /dev/ttyUSB1
+

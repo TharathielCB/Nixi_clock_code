@@ -111,10 +111,10 @@ void nixie_display::print(uint16 value, uint16 delay_us) {
     uint8 sr_bits[64] = { 0 };
 	Serial.println("preparing bits");
     // Pin-Mapping of Shift-Register ->Nixie-Tubes
-  	uint8 bitlist_tube0[10] = { 8, 0, 1, 2, 3, 4, 5, 6, 7, 9};
-  	uint8 bitlist_tube1[10] = {19,12,11,10,13,14,15,16,17,18};
-  	uint8 bitlist_tube2[10] = {47,42,43,44,45,46,51,50,49,48};
-  	uint8 bitlist_tube3[10] = {62,53,54,55,56,57,58,59,60,61};
+  	uint8 bitlist_tube0[10] = {10,0,2,3,4,5,6,7,9,11};
+  	uint8 bitlist_tube1[10] = {22,16,15,14,13,12,18,19,20,21};
+  	uint8 bitlist_tube2[10] = {46,39,41,42,43,44,50,49,48,47};
+  	uint8 bitlist_tube3[10] = {61,52,51,54,55,56,57,58,59,62};
 
     // extract digits from value
     for (i = 0; i < 4; i++){
@@ -129,8 +129,8 @@ void nixie_display::print(uint16 value, uint16 delay_us) {
     sr_bits[bitlist_tube3[digit[3]]] = HIGH;
     // additionally fill space between tubes with values
     // -> looks better while shifting
-    sr_bits[bitlist_tube2[digit[2]]-10] = HIGH;
-    sr_bits[bitlist_tube1[digit[1]]+10] = HIGH;
+   // sr_bits[bitlist_tube2[digit[2]]-10] = HIGH;
+   // sr_bits[bitlist_tube1[digit[1]]+10] = HIGH;
 
 	Serial.println("shifting bits");
     shift_bit(0,1);
