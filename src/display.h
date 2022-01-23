@@ -21,6 +21,9 @@ private:
     uint8_t clk_pin = 4;
     uint8_t strobe_pin = 5;
     uint16 shift_delay = 5; // make change of value look fancy
+
+	uint8 commas_values = 0; // commas are stored bitwise. Least bit is right comma
+	uint16 display_value = 0;
     Adafruit_MCP23008 *mcp;
 	void setup_pins();
     PublishFunctionPtr publisher;
@@ -33,14 +36,17 @@ public:
     // ~nixie_display();                  // destructor
     void on();
     void off();
-    void toggle();
+	void toggle();
     void clr();
     void shift_bit(uint8 value, uint16 delay_us);
+    void print_comma(uint8 value);
     void print(uint16 value);
     void printh(uint16 value);
     void print(uint16 value, uint16 delay_us);
 	void set_publish_callback(PublishFunctionPtr callback);
     void set_delay(uint16 delay);
     uint16 get_delay();
+	uint8 get_commas();
+
 };
 #endif

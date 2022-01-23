@@ -101,10 +101,20 @@ void nixie_display::printh(uint16 value) {
 }
 
 
+void nixie_display::print_comma(uint8 value) {
+	commas_values = value;
+	printh(display_value);
+}
+
+uint8 nixie_display::get_commas() {
+	return commas_values;
+}
+
 void nixie_display::print(uint16 value, uint16 delay_us) {
-    char *value_str = new char[5];
+	char *value_str = new char[5];
     sprintf(value_str, "%4d", value);
     
+    display_value = value;
 	
 	uint8 i;
     uint8 digit[4];
@@ -116,12 +126,21 @@ void nixie_display::print(uint16 value, uint16 delay_us) {
   	uint8 bitlist_tube2[10] = {46,39,41,42,43,44,50,49,48,47};
   	uint8 bitlist_tube3[10] = {61,52,51,54,55,56,57,58,59,62};
 
+	uint8 commas[8] = {1,8,17,23,40,45,53,60};
+
     // extract digits from value
     for (i = 0; i < 4; i++){
         digit[3-i] = value % 10;
         value = value / 10;
     }
 	Serial.println("create sr_bits");
+
+	// display commas
+	for (i = 0; i < 7; i++) {
+		if (commas_values & (0x01 << i)) {
+			sr_bits[commas[7-i]] = HIGH;
+		}
+	}	
 
     sr_bits[bitlist_tube0[digit[0]]] = HIGH;
     sr_bits[bitlist_tube1[digit[1]]] = HIGH;
@@ -131,6 +150,14 @@ void nixie_display::print(uint16 value, uint16 delay_us) {
     // -> looks better while shifting
    // sr_bits[bitlist_tube2[digit[2]]-10] = HIGH;
    // sr_bits[bitlist_tube1[digit[1]]+10] = HIGH;
+
+	// for a prettier looking of the shifting-effect
+	// set some of the not connected shift-register ouput to HIGH
+	sr_bits[24] = HIGH;
+	sr_bits[30] = HIGH;
+	sr_bits[38] = HIGH;
+
+
 
 	Serial.println("shifting bits");
     shift_bit(0,1);

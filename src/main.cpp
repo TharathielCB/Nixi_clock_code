@@ -147,9 +147,16 @@ void prev_menupoint() {
 
 void show_time() {
   oldnumber = number;
-//  number = clock.hour() * 100 + clock.minute();
-  number = nixieclock.get_hour() * 100 + nixieclock.get_minute();
 
+// display seconds
+  uint8 sec = nixieclock.get_second();
+  if (display.get_commas() != sec) {
+	  display.print_comma(sec);
+  }
+
+//  number = clock.hour() * 100 + clock.minute()
+
+  number = nixieclock.get_hour() * 100 + nixieclock.get_minute(); 
   if (number != oldnumber ) {
     display.print(number);
     Serial.println(number);

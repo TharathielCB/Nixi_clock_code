@@ -227,6 +227,11 @@ uint8_t nixieTimer::get_minute() {
   return _min;
 }
 
+uint8_t nixieTimer::get_second() {
+  read_time();
+  return _sec;
+}
+
 uint8_t nixieTimer::get_month() {
   return month();
 }

@@ -48,6 +48,7 @@
       void begin();
       uint8_t get_hour();
       uint8_t get_minute();
+      uint8_t get_second();
       uint8_t get_day();
       uint8_t get_month();
       uint16_t get_year();
